@@ -4,10 +4,11 @@ An OpenAI-compatible **LLM endpoint** backed by a Claude or Codex CLI running in
 docker. It lets a subscription (`~/.claude` / `~/.codex` login, no API key) be
 consumed through the standard `POST /v1/chat/completions` wire protocol.
 
-It is the backend half of a split:
+It is the backend half of a split with
+[`workflow-agent`](https://github.com/obeli-sk/workflow-agent):
 
 ```
-FRONTEND  obelisk-agent            THE AGENT
+FRONTEND  workflow-agent           THE AGENT (FFQN prefix: obelisk-agent)
   - pure HTTP, holds the conversation in durable workflow state
   - each turn: POST /v1/chat/completions with the FULL message history
              |
@@ -63,6 +64,8 @@ curl -i -sS -X POST http://127.0.0.1:9190/v1/chat/completions \
 Successful responses include `x-obelisk-execution-id`, the backing session
 workflow execution id to inspect with `obelisk execution status/events/result`.
 
-Point the `obelisk-agent` frontend (or any OpenAI client) at
+Point the
+[`workflow-agent`](https://github.com/obeli-sk/workflow-agent) frontend (or any
+OpenAI client) at
 `http://127.0.0.1:9190` as its `LLM_BASE_URL`. `model` selects the backend:
 anything containing `codex`/`gpt`/`o1`/`o3` routes to codex, otherwise claude.
