@@ -1,0 +1,2 @@
+obelisk 0.39.4
+node.js v22.23.1
