@@ -35,7 +35,7 @@ export default async function handle(request) {
         if (lastAssistant === -1) {
             turn = await turnZero(messages, systemPrompt, tools, model);
         } else {
-            turn = await continuation(messages, systemPrompt, lastAssistant);
+            turn = await continuation(messages, systemPrompt, tools, lastAssistant);
         }
 
         let reply;
@@ -71,8 +71,9 @@ async function turnZero(messages, systemPrompt, tools, model) {
 
 // Turn k>=1: pair by the committed-history hash, deliver the delta (idempotently),
 // and return the response-stub id to read the reply from.
-async function continuation(messages, systemPrompt, lastAssistant) {
-    const prefixHash = computePrefixHash(systemPrompt, messages, lastAssistant);
+async function continuation(messages, systemPrompt, tools, lastAssistant) {
+    const workflowSystem = systemPrompt + renderToolsPrompt(tools);
+    const prefixHash = computePrefixHash(workflowSystem, messages, lastAssistant);
     const priorToolCalls = toolCallsOf(messages[lastAssistant]);
     const delta = messagesToInput(messages.slice(lastAssistant + 1), priorToolCalls);
 
