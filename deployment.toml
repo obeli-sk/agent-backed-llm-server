@@ -1,0 +1,147 @@
+# agent-llm-server: an OpenAI-compatible /v1/chat/completions endpoint backed by
+# a warm claude/codex CLI in docker. See README.md for the design.
+#
+# content_digest is intentionally omitted (optional); obelisk resolves each
+# component from its `location`. `just sync` fills digests from the live server.
+
+# --- Agent lifecycle: provider-specific start (one per backend) ---------------
+# Both point to agent-start.js; AGENT_BACKEND selects the auth mount + CLI, and
+# the container's server.js spawns the right backend.
+
+[[activity_exec]]
+ffqn = "agent-llm:agent/claude.start"
+params = [
+  { name = "container-name", type = "string" },
+  { name = "socket",         type = "string" },
+  { name = "system-prompt",  type = "string" },
+]
+return_type = "result<record { container: string, image: string, socket: string, id: string }, string>"
+location = "activity/agent-start.js"
+exec.lock_expiry.minutes = 2
+max_retries = 1
+env_vars = [
+  "PATH",
+  "HOME",
+  { key = "AGENT_IMAGE",           value = "${AGENT_IMAGE:-ghcr.io/obeli-sk/agent-llm-server:latest}" },
+  { key = "AGENT_BACKEND",         value = "claude" },
+  { key = "AGENT_MODEL",           value = "${AGENT_MODEL:-claude-opus-4-7}" },
+  { key = "AGENT_EXTRA_ARGS",      value = "${AGENT_EXTRA_ARGS:-}" },
+  { key = "AGENT_HOST_CLAUDE_DIR", value = "${AGENT_HOST_CLAUDE_DIR:-${HOME}/.claude}" },
+]
+
+[[activity_exec]]
+ffqn = "agent-llm:agent/codex.start"
+params = [
+  { name = "container-name", type = "string" },
+  { name = "socket",         type = "string" },
+  { name = "system-prompt",  type = "string" },
+]
+return_type = "result<record { container: string, image: string, socket: string, id: string }, string>"
+location = "activity/agent-start.js"
+exec.lock_expiry.minutes = 2
+max_retries = 1
+env_vars = [
+  "PATH",
+  "HOME",
+  { key = "AGENT_IMAGE",          value = "${AGENT_IMAGE:-ghcr.io/obeli-sk/agent-llm-server:latest}" },
+  { key = "AGENT_BACKEND",        value = "codex" },
+  { key = "AGENT_MODEL",          value = "${AGENT_CODEX_MODEL:-gpt-5.5}" },
+  { key = "AGENT_EXTRA_ARGS",     value = "${AGENT_CODEX_EXTRA_ARGS:-}" },
+  { key = "AGENT_HOST_CODEX_DIR", value = "${AGENT_HOST_CODEX_DIR:-${HOME}/.codex}" },
+]
+
+# --- Agent session: provider-agnostic send / recv / cleanup -------------------
+
+[[activity_exec]]
+ffqn = "agent-llm:agent/session.send"
+params = [
+  { name = "socket", type = "string" },
+  { name = "input", type = "variant { prompt(string), tool-results(list<record { name: string, outcome: result<string, string> }>) }" },
+  { name = "operator-messages", type = "list<string>" },
+]
+return_type = "result<_, string>"
+location = "activity/agent-send.js"
+params_via_stdin = true
+exec.lock_expiry.seconds = 30
+max_retries = 3
+env_vars = ["PATH"]
+
+[[activity_exec]]
+ffqn = "agent-llm:agent/session.recv"
+params = [
+  { name = "socket", type = "string" },
+  { name = "timeout-ms", type = "u32" },
+]
+return_type = "result<variant { working, reply(record { reply: variant { final(string), error(string), tool-calls(list<record { name: string, arguments-json: string }>) }, presentation: string, narration: string }) }, variant { permanent-rate-limited(record { retry-after-seconds: u32, message: string }), permanent-malformed-reply(string), permanent-agent-exited(string), permanent-error(string), transient-error(string), execution-failed }>"
+location = "activity/agent-recv.js"
+exec.lock_expiry.minutes = 10
+max_output_bytes = 1048576
+max_retries = 3
+env_vars = ["PATH"]
+
+[[activity_exec]]
+ffqn = "agent-llm:agent/session.cleanup"
+params = [
+  { name = "container-name", type = "string" },
+  { name = "socket",         type = "string" },
+]
+return_type = "result<_, string>"
+location = "activity/agent-cleanup.js"
+exec.lock_expiry.seconds = 30
+max_retries = 3
+env_vars = ["PATH"]
+
+# --- The stub pair: webhook <-> session workflow rendezvous -------------------
+# turn.request: workflow submits & awaits; webhook injects the delta by id. Its
+#   params expose the paired response-id and the committed-history hash so the
+#   webhook can pair a request and know where to read the reply.
+# turn.response: workflow submits, then self-fulfils via obelisk.stub; the
+#   webhook reads it with obelisk.get (blocking).
+
+[[activity_stub]]
+name = "turn_request"
+ffqn = "agent-llm:session/turn.request"
+params = [
+  { name = "response-id",          type = "string" },
+  { name = "expected-prefix-hash", type = "string" },
+]
+return_type = "result<variant { delta(string), teardown }, string>"
+
+[[activity_stub]]
+name = "turn_response"
+ffqn = "agent-llm:session/turn.response"
+params = []
+return_type = "result<string, string>"
+
+# --- Session workflow ---------------------------------------------------------
+
+[[workflow_js]]
+ffqn = "agent-llm:session/workflow.session"
+params = [
+  { name = "backend",       type = "string" },
+  { name = "system-prompt", type = "string" },
+]
+return_type = "result<string, string>"
+location = "workflow/session.js"
+
+# --- Chat-completions webhook -------------------------------------------------
+
+[[webhook_endpoint_js]]
+name = "chat-completions"
+location = "webhook/chat.js"
+routes = [
+  { methods = ["POST"], route = "/v1/chat/completions" },
+]
+env_vars = [
+  { key = "OBELISK_API_URL", value = "${OBELISK_API_URL:-http://127.0.0.1:5005}" },
+]
+# List executions + read created params to pair a request to a session.
+[[webhook_endpoint_js.allowed_host]]
+pattern = "${OBELISK_API_URL:-http://127.0.0.1:5005}"
+methods = ["GET"]
+request_url_regex = "^GET ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5005}/v1/executions"
+# Inject the delta into a turn.request stub.
+[[webhook_endpoint_js.allowed_host]]
+pattern = "${OBELISK_API_URL:-http://127.0.0.1:5005}"
+methods = ["PUT"]
+request_url_regex = "^PUT ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5005}/v1/executions/[^/]+/stub$"
