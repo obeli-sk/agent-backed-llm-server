@@ -4,3 +4,4 @@
 api.listening_addr = "127.0.0.1:5105"       # gRPC/REST API; matches OBELISK_API_URL in deployment.toml
 webui.listening_addr = "127.0.0.1:8180"     # Web UI
 external.listening_addr = "127.0.0.1:9190"  # external HTTP server; serves POST /v1/chat/completions
+database.sqlite.directory = "${DATA_DIR}/obelisk-sqlite-agent-backed-llm-server"
