@@ -1,0 +1,6 @@
+# This app runs a second Obelisk instance alongside another one (e.g. the
+# obelisk-agent frontend on the default 5005/8080/9090), so every port is shifted
+# by +100 to avoid a clash.
+api.listening_addr = "127.0.0.1:5105"       # gRPC/REST API; matches OBELISK_API_URL in deployment.toml
+webui.listening_addr = "127.0.0.1:8180"     # Web UI
+external.listening_addr = "127.0.0.1:9190"  # external HTTP server; serves POST /v1/chat/completions

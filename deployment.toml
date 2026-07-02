@@ -1,5 +1,5 @@
 # agent-backed-llm-server: an OpenAI-compatible /v1/chat/completions endpoint
-# backed by a warm claude/codex CLI in docker. See README.md for the design.
+# backed by a warm claude/codex CLI in docker. See DESIGN.md for the design.
 #
 # content_digest is intentionally omitted (optional); obelisk resolves each
 # component from its `location`. `just sync` fills digests from the live server.
@@ -133,15 +133,15 @@ routes = [
   { methods = ["POST"], route = "/v1/chat/completions" },
 ]
 env_vars = [
-  { key = "OBELISK_API_URL", value = "${OBELISK_API_URL:-http://127.0.0.1:5005}" },
+  { key = "OBELISK_API_URL", value = "${OBELISK_API_URL:-http://127.0.0.1:5105}" },
 ]
 # List executions + read created params to pair a request to a session.
 [[webhook_endpoint_js.allowed_host]]
-pattern = "${OBELISK_API_URL:-http://127.0.0.1:5005}"
+pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
 methods = ["GET"]
-request_url_regex = "^GET ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5005}/v1/executions"
+request_url_regex = "^GET ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions"
 # Inject the delta into a turn.request stub.
 [[webhook_endpoint_js.allowed_host]]
-pattern = "${OBELISK_API_URL:-http://127.0.0.1:5005}"
+pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
 methods = ["PUT"]
-request_url_regex = "^PUT ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5005}/v1/executions/[^/]+/stub$"
+request_url_regex = "^PUT ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions/[^/]+/stub$"
