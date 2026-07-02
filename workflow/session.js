@@ -46,17 +46,24 @@ export default function sessionWorkflow(backend, systemPrompt) {
 
         let committed = seedHash(systemPrompt);
         for (let turn = 0; turn < MAX_TURNS; turn += 1) {
-            const next = awaitTurn(committed);
+            const next = awaitTurn(committed, turn);
             if (next === null) { outcome = "session idle; cleaned up"; break; }
             if (next.teardown) { outcome = "session torn down by operator"; break; }
 
             const input = parseInput(next.delta);
             committed = rollHash(committed, canonicalInput(input));
 
-            const reply = sendAndDrain(socketPath, input);
-            obelisk.stub(next.respId, { ok: JSON.stringify(reply) });
-            committed = rollHash(committed, canonicalReply(reply));
-            console.log(`--- turn ${turn} done (${replyKind(reply)}) ---`);
+            try {
+                const reply = sendAndDrain(socketPath, input);
+                obelisk.stub(next.respId, { ok: JSON.stringify(reply) });
+                committed = rollHash(committed, canonicalReply(reply));
+                console.log(`--- turn ${turn} done (${replyKind(reply)}) ---`);
+            } catch (error) {
+                try { obelisk.stub(next.respId, { err: String(error) }); } catch (_) {}
+                throw error;
+            } finally {
+                next.respSet.close();
+            }
         }
     } catch (error) {
         workflowError = error;
@@ -76,11 +83,11 @@ export default function sessionWorkflow(backend, systemPrompt) {
 // Publish the two stubs for this turn and block until either the webhook
 // delivers the next turn (via turn.request) or the idle sleep fires. Returns
 //   { respId, delta } | { respId, teardown: true } | null (idle timeout).
-function awaitTurn(committed) {
-    const respSet = obelisk.createJoinSet({ name: "response" });
+function awaitTurn(committed, turn) {
+    const respSet = obelisk.createJoinSet({ name: `response-${turn}` });
     const respId = respSet.submit(TURN_RESPONSE_FFQN, []);
 
-    const raceSet = obelisk.createJoinSet({ name: "request" });
+    const raceSet = obelisk.createJoinSet({ name: `request-${turn}` });
     const reqId = raceSet.submit(TURN_REQUEST_FFQN, [respId, committed]);
     raceSet.submitDelay(IDLE_TIMEOUT);
 
@@ -89,19 +96,21 @@ function awaitTurn(committed) {
         if (winner.type === "delay") {
             // Idle: no request arrived in time. Drop the unanswered response stub.
             obelisk.stub(respId, { err: "session idle timeout" });
+            respSet.close();
             return null;
         }
         const value = obelisk.getResult(reqId);   // variant { delta(string), teardown }
         if (value === "teardown" || (value && value.teardown !== undefined)) {
             obelisk.stub(respId, { err: "session torn down" });
+            respSet.close();
             return { respId, teardown: true };
         }
         const delta = (value && typeof value.delta === "string") ? value.delta : null;
         if (delta === null) throw `turn.request returned an unexpected value: ${JSON.stringify(value)}`;
-        return { respId, delta };
+        return { respSet, respId, delta };
     } finally {
-        try { raceSet.close(); } catch (e) { console.log(`request join set close failed: ${String(e)}`); }
-        try { respSet.close(); } catch (e) { console.log(`response join set close failed: ${String(e)}`); }
+        // Cancel the losing idle delay once the request stub has completed.
+        raceSet.close();
     }
 }
 
@@ -184,8 +193,8 @@ function malformedReply(error) {
 // the hash from the conversation history. Keep these functions byte-identical
 // with the copies in webhook/chat.js.
 
-function seedHash(systemPrompt) { return hash64("agent-backed-llm:v1 " + String(systemPrompt || "")); }
-function rollHash(prev, item) { return hash64(prev + " " + item); }
+function seedHash(systemPrompt) { return hash64("agent-backed-llm:v1\0" + String(systemPrompt || "")); }
+function rollHash(prev, item) { return hash64(prev + "\0" + item); }
 
 function canonicalInput(input) {
     if (input && typeof input.prompt === "string") return "P:" + input.prompt;
@@ -195,7 +204,7 @@ function canonicalInput(input) {
             const body = o && "ok" in o ? "ok:" + String(o.ok) : "err:" + String(o && o.err);
             return String(tr && tr.name) + "=" + body;
         });
-        return "T:" + parts.join("");
+        return "T:" + parts.join("\x01");
     }
     return "?:" + JSON.stringify(input);
 }
@@ -203,7 +212,7 @@ function canonicalReply(reply) {
     if (reply && typeof reply.final === "string") return "F:" + reply.final;
     if (reply && Array.isArray(reply.tool_calls)) {
         const parts = reply.tool_calls.map((c) => String(c && c.name) + "(" + String(c && c.arguments_json) + ")");
-        return "C:" + parts.join("");
+        return "C:" + parts.join("\x01");
     }
     return "?:" + JSON.stringify(reply);
 }

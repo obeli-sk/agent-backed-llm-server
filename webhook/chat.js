@@ -13,6 +13,7 @@ const TURN_REQUEST_FFQN = "agent-backed-llm:session/turn.request";
 
 const API_BASE = (process.env["OBELISK_API_URL"] || "http://127.0.0.1:5005").replace(/\/$/, "");
 const START_POLL_BUDGET_MS = 90000;   // cold container start on turn 0
+const START_POLL_INTERVAL_MS = 250;
 
 export default async function handle(request) {
     if (request.method !== "POST") return jsonError(405, "method not allowed");
@@ -30,17 +31,23 @@ export default async function handle(request) {
         const systemPrompt = system ? contentString(system.content) : "";
         const lastAssistant = lastIndex(messages, (m) => m && m.role === "assistant");
 
-        let respId;
+        let turn;
         if (lastAssistant === -1) {
-            respId = await turnZero(messages, systemPrompt, tools, model);
+            turn = await turnZero(messages, systemPrompt, tools, model);
         } else {
-            respId = await continuation(messages, systemPrompt, lastAssistant);
+            turn = await continuation(messages, systemPrompt, lastAssistant);
         }
 
-        const reply = getReply(respId);   // { final } | { tool_calls }
-        return jsonResponse(openaiResponse(reply, model));
+        let reply;
+        try {
+            reply = getReply(turn.respId);   // { final } | { tool_calls }
+        } catch (error) {
+            error.workflowExecutionId = turn.workflowExecutionId;
+            throw error;
+        }
+        return jsonResponse(openaiResponse(reply, model), 200, workflowHeaders(turn.workflowExecutionId));
     } catch (e) {
-        if (e && e.httpStatus) return jsonError(e.httpStatus, e.message);
+        if (e && e.httpStatus) return jsonError(e.httpStatus, e.message, workflowHeaders(e.workflowExecutionId));
         return jsonError(502, String(e && e.message ? e.message : e));
     }
 }
@@ -53,10 +60,13 @@ async function turnZero(messages, systemPrompt, tools, model) {
     const workflowSystem = systemPrompt + renderToolsPrompt(tools);
     obelisk.schedule(sessionId, WORKFLOW_FFQN, [backend, workflowSystem]);
 
-    const req = await pollForSessionRequest(sessionId);
+    const req = await pollForSessionRequest(sessionId).catch((error) => {
+        error.workflowExecutionId = sessionId;
+        throw error;
+    });
     const delta = messagesToInput(messagesAfterSystem(messages), null);
     await injectStub(req.reqId, { ok: { delta: JSON.stringify(delta) } });
-    return req.respId;
+    return { respId: req.respId, workflowExecutionId: sessionId };
 }
 
 // Turn k>=1: pair by the committed-history hash, deliver the delta (idempotently),
@@ -71,10 +81,10 @@ async function continuation(messages, systemPrompt, lastAssistant) {
     const pending = await findRequestByHash(prefixHash, true);
     if (pending) {
         await injectStub(pending.reqId, { ok: { delta: JSON.stringify(delta) } });
-        return pending.respId;
+        return { respId: pending.respId, workflowExecutionId: workflowExecutionIdOf(pending.reqId) };
     }
     const finished = await findRequestByHash(prefixHash, false);
-    if (finished) return finished.respId;
+    if (finished) return { respId: finished.respId, workflowExecutionId: workflowExecutionIdOf(finished.reqId) };
     throw httpError(409, "no open session matches this conversation history");
 }
 
@@ -109,8 +119,8 @@ function computePrefixHash(systemPrompt, messages, lastAssistant) {
     return h;
 }
 
-function seedHash(systemPrompt) { return hash64("agent-backed-llm:v1 " + String(systemPrompt || "")); }
-function rollHash(prev, item) { return hash64(prev + " " + item); }
+function seedHash(systemPrompt) { return hash64("agent-backed-llm:v1\0" + String(systemPrompt || "")); }
+function rollHash(prev, item) { return hash64(prev + "\0" + item); }
 
 function canonicalInput(input) {
     if (input && typeof input.prompt === "string") return "P:" + input.prompt;
@@ -120,7 +130,7 @@ function canonicalInput(input) {
             const body = o && "ok" in o ? "ok:" + String(o.ok) : "err:" + String(o && o.err);
             return String(tr && tr.name) + "=" + body;
         });
-        return "T:" + parts.join("");
+        return "T:" + parts.join("\x01");
     }
     return "?:" + JSON.stringify(input);
 }
@@ -128,7 +138,7 @@ function canonicalReply(reply) {
     if (reply && typeof reply.final === "string") return "F:" + reply.final;
     if (reply && Array.isArray(reply.tool_calls)) {
         const parts = reply.tool_calls.map((c) => String(c && c.name) + "(" + String(c && c.arguments_json) + ")");
-        return "C:" + parts.join("");
+        return "C:" + parts.join("\x01");
     }
     return "?:" + JSON.stringify(reply);
 }
@@ -225,15 +235,16 @@ function renderToolsPrompt(tools) {
 async function pollForSessionRequest(sessionId) {
     const deadline = Date.now() + START_POLL_BUDGET_MS;
     while (Date.now() < deadline) {
-        const found = await findRequest(`ffqn_prefix=${enc(TURN_REQUEST_FFQN)}&execution_id_prefix=${enc(sessionId)}&hide_finished=true`,
+        const found = await findRequest(`show_derived=true&ffqn_prefix=${enc(TURN_REQUEST_FFQN)}&execution_id_prefix=${enc(sessionId)}&hide_finished=true`,
             () => true);
         if (found) return found;
+        await sleep(START_POLL_INTERVAL_MS);
     }
     throw httpError(504, "timed out waiting for the session to start");
 }
 
 async function findRequestByHash(prefixHash, pendingOnly) {
-    const filter = `ffqn_prefix=${enc(TURN_REQUEST_FFQN)}${pendingOnly ? "&hide_finished=true" : ""}&length=200`;
+    const filter = `show_derived=true&ffqn_prefix=${enc(TURN_REQUEST_FFQN)}${pendingOnly ? "&hide_finished=true" : ""}&length=200`;
     return findRequest(filter, (params) => params.expected === prefixHash);
 }
 
@@ -305,8 +316,14 @@ function firstNonSystem(messages) {
 function lastIndex(arr, pred) { for (let i = arr.length - 1; i >= 0; i -= 1) if (pred(arr[i])) return i; return -1; }
 function enc(v) { return encodeURIComponent(v); }
 
-function jsonResponse(value, status = 200) {
-    return new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json; charset=utf-8" } });
+function jsonResponse(value, status = 200, extraHeaders = {}) {
+    return new Response(JSON.stringify(value), {
+        status,
+        headers: { "content-type": "application/json; charset=utf-8", ...extraHeaders },
+    });
 }
-function jsonError(status, message) { return jsonResponse({ error: { message, type: "invalid_request_error" } }, status); }
+function jsonError(status, message, extraHeaders = {}) { return jsonResponse({ error: { message, type: "invalid_request_error" } }, status, extraHeaders); }
 function httpError(status, message) { const e = new Error(message); e.httpStatus = status; return e; }
+function workflowHeaders(id) { return id ? { "x-obelisk-execution-id": id } : {}; }
+function workflowExecutionIdOf(childId) { return String(childId || "").split(".")[0]; }
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }

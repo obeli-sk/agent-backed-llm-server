@@ -98,7 +98,7 @@ async function main() {
   const systemPrompt = parseJsonArg(4, "system-prompt");
   if (!containerName) failPermanent("container-name must not be empty");
   if (!socketPath) failPermanent("socket must not be empty");
-  if (!systemPrompt) failPermanent("system-prompt must not be empty");
+  if (typeof systemPrompt !== "string") failPermanent("system-prompt must be a string");
 
   // Each backend keeps its auth in a host config dir that we bind-mount into
   // the container. The entrypoint then points the backend CLI at the mount.
