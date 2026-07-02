@@ -1,0 +1,78 @@
+name: push-docker-image
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The tag to be used when pushing the image to the Docker Hub. Also written to deployment.toml."
+        required: true
+        type: string
+      ref:
+        description: "The ref (branch or SHA) to process"
+        required: false
+        type: string
+      push_latest:
+        description: "Also push and pin the `latest` tag."
+        required: false
+        default: true
+        type: boolean
+
+defaults:
+  run:
+    shell: bash -xe {0}
+
+env:
+  IMAGE_BASE: docker.io/getobelisk/agent-backed-llm-server
+
+jobs:
+  push-docker-image:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          ref: ${{ github.event.inputs.ref }} # Use the ref if provided, otherwise defaults to the current branch/commit
+
+      - name: Log in to Docker Hub
+        run: echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+        env:
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build and push the image
+        run: |
+          docker build -t "${IMAGE_BASE}:${TAG}" agent-server
+          docker push "${IMAGE_BASE}:${TAG}"
+          if [ "${PUSH_LATEST}" = "true" ]; then
+            docker tag "${IMAGE_BASE}:${TAG}" "${IMAGE_BASE}:latest"
+            docker push "${IMAGE_BASE}:latest"
+          fi
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+          PUSH_LATEST: ${{ github.event.inputs.push_latest }}
+
+      # Pin the pushed tag as the AGENT_IMAGE default in deployment.toml. The
+      # regex rewrites whatever is inside `${AGENT_IMAGE:-...}`, so it is idempotent
+      # across repeated pushes.
+      - name: Pin the pushed tag in deployment.toml
+        run: |
+          sed -i -E "s#(\\\$\\{AGENT_IMAGE:-)[^}]*(})#\\1${IMAGE_BASE}:${TAG}\\2#g" deployment.toml
+          git diff -- deployment.toml
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+
+      - name: Commit the deployment bump to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- deployment.toml; then
+            echo "deployment.toml already points at ${IMAGE_BASE}:${TAG}, nothing to commit."
+          else
+            git add deployment.toml
+            git commit -m "ci: Bump agent-backed-llm-server image to ${TAG}"
+            git push origin HEAD:main
+          fi
+        env:
+          TAG: ${{ github.event.inputs.tag }}
