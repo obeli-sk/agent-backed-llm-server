@@ -28,6 +28,7 @@ env_vars = [
   { key = "AGENT_EXTRA_ARGS",      value = "${AGENT_EXTRA_ARGS:-}" },
   { key = "AGENT_HOST_CLAUDE_DIR", value = "${AGENT_HOST_CLAUDE_DIR:-${HOME}/.claude}" },
 ]
+content_digest = "sha256:52394d8c340e8ae59527ccc7bd425f46a35f928a28caf919e0c74ac1774c7aae"
 
 [[activity_exec]]
 ffqn = "agent-backed-llm:agent/codex.start"
@@ -49,6 +50,7 @@ env_vars = [
   { key = "AGENT_EXTRA_ARGS",     value = "${AGENT_CODEX_EXTRA_ARGS:-}" },
   { key = "AGENT_HOST_CODEX_DIR", value = "${AGENT_HOST_CODEX_DIR:-${HOME}/.codex}" },
 ]
+content_digest = "sha256:52394d8c340e8ae59527ccc7bd425f46a35f928a28caf919e0c74ac1774c7aae"
 
 # --- Agent session: provider-agnostic send / recv / cleanup -------------------
 
@@ -65,6 +67,7 @@ params_via_stdin = true
 exec.lock_expiry.seconds = 30
 max_retries = 3
 env_vars = ["PATH"]
+content_digest = "sha256:536a62d943260b22abcd501467cc819534b18a9cc930e238f0103afdc3e5bac4"
 
 [[activity_exec]]
 ffqn = "agent-backed-llm:agent/session.recv"
@@ -78,6 +81,7 @@ exec.lock_expiry.minutes = 10
 max_output_bytes = 1048576
 max_retries = 3
 env_vars = ["PATH"]
+content_digest = "sha256:b1a0cb695e54841f4c3cbe1c2ed28f944c0321a0ee9bf6e552a8360fa74fba86"
 
 [[activity_exec]]
 ffqn = "agent-backed-llm:agent/session.cleanup"
@@ -90,6 +94,7 @@ location = "activity/agent-cleanup.js"
 exec.lock_expiry.seconds = 30
 max_retries = 3
 env_vars = ["PATH"]
+content_digest = "sha256:29350a3896ee19e9cf005669bfd2e60d6483f7178d33142a2689c8d5480dc2d6"
 
 # --- The stub pair: webhook <-> session workflow rendezvous -------------------
 # turn.request: workflow submits & awaits; webhook injects the delta by id. Its
@@ -123,6 +128,7 @@ params = [
 ]
 return_type = "result<string, string>"
 location = "workflow/session.js"
+content_digest = "sha256:19c7253435b76a90aa1c50457f6d555ac4e48941d069b5989e03aee3c8fc29db"
 
 # --- Chat-completions webhook -------------------------------------------------
 
@@ -135,6 +141,7 @@ routes = [
 env_vars = [
   { key = "OBELISK_API_URL", value = "${OBELISK_API_URL:-http://127.0.0.1:5105}" },
 ]
+content_digest = "sha256:32cca45db9419948ec358fac5857f3d9e85775d279ccb559d14758fbd2a68184"
 # List executions + read created params to pair a request to a session.
 [[webhook_endpoint_js.allowed_host]]
 pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
