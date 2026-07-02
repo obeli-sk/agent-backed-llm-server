@@ -5,7 +5,7 @@ import path from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
 
-const IMAGE_NAME = process.env.AGENT_IMAGE || "ghcr.io/obeli-sk/obelisk-agent-server:latest";
+const IMAGE_NAME = process.env.AGENT_IMAGE || "docker.io/getobelisk/agent-backed-llm-server:latest";
 const START_TIMEOUT_MS = 60000;
 const POLL_INTERVAL_MS = 250;
 const CONTAINER_SOCKET_DIR = "/sockets";

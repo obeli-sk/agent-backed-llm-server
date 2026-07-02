@@ -14,12 +14,12 @@
 // The webhook never parses LLM JSON: the reply is already the normalized
 // { final } | { tool_calls } shape produced by the container's server.js.
 
-import * as claude from "agent-llm:agent/claude";
-import * as codex from "agent-llm:agent/codex";
-import * as session from "agent-llm:agent/session";
+import * as claude from "agent-backed-llm:agent/claude";
+import * as codex from "agent-backed-llm:agent/codex";
+import * as session from "agent-backed-llm:agent/session";
 
-const TURN_REQUEST_FFQN = "agent-llm:session/turn.request";
-const TURN_RESPONSE_FFQN = "agent-llm:session/turn.response";
+const TURN_REQUEST_FFQN = "agent-backed-llm:session/turn.request";
+const TURN_RESPONSE_FFQN = "agent-backed-llm:session/turn.response";
 const STARTERS = { claude: claude.start, codex: codex.start };
 
 const RECV_TIMEOUT_MS = 30000;
@@ -35,8 +35,8 @@ export default function sessionWorkflow(backend, systemPrompt) {
 
     const executionId = obelisk.executionIdCurrent();
     const sessionId = sanitize(executionId);
-    const containerName = `agent-llm-${sessionId}`;
-    const socketPath = `/tmp/agent-llm/${sessionId}.sock`;
+    const containerName = `agent-backed-llm-${sessionId}`;
+    const socketPath = `/tmp/agent-backed-llm/${sessionId}.sock`;
 
     let workflowError = null;
     let outcome = "session ended";
@@ -184,7 +184,7 @@ function malformedReply(error) {
 // the hash from the conversation history. Keep these functions byte-identical
 // with the copies in webhook/chat.js.
 
-function seedHash(systemPrompt) { return hash64("agent-llm:v1 " + String(systemPrompt || "")); }
+function seedHash(systemPrompt) { return hash64("agent-backed-llm:v1 " + String(systemPrompt || "")); }
 function rollHash(prev, item) { return hash64(prev + " " + item); }
 
 function canonicalInput(input) {

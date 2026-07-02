@@ -1,4 +1,4 @@
-image := "ghcr.io/obeli-sk/agent-llm-server:latest"
+image := "docker.io/getobelisk/agent-backed-llm-server:latest"
 
 build:
   docker build -t {{image}} agent-server

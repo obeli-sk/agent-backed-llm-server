@@ -8,8 +8,8 @@
 // session's turn.request stub, and read the reply from its turn.response stub.
 // See README.md for the design and the stub pair.
 
-const WORKFLOW_FFQN = "agent-llm:session/workflow.session";
-const TURN_REQUEST_FFQN = "agent-llm:session/turn.request";
+const WORKFLOW_FFQN = "agent-backed-llm:session/workflow.session";
+const TURN_REQUEST_FFQN = "agent-backed-llm:session/turn.request";
 
 const API_BASE = (process.env["OBELISK_API_URL"] || "http://127.0.0.1:5005").replace(/\/$/, "");
 const START_POLL_BUDGET_MS = 90000;   // cold container start on turn 0
@@ -109,7 +109,7 @@ function computePrefixHash(systemPrompt, messages, lastAssistant) {
     return h;
 }
 
-function seedHash(systemPrompt) { return hash64("agent-llm:v1 " + String(systemPrompt || "")); }
+function seedHash(systemPrompt) { return hash64("agent-backed-llm:v1 " + String(systemPrompt || "")); }
 function rollHash(prev, item) { return hash64(prev + " " + item); }
 
 function canonicalInput(input) {
@@ -194,7 +194,7 @@ function openaiResponse(reply, model) {
         id: "chatcmpl-" + obelisk.executionIdCurrent(),
         object: "chat.completion",
         created: Math.floor(Date.now() / 1000),
-        model: model || "agent-llm",
+        model: model || "agent-backed-llm",
         choices: [{ index: 0, message, finish_reason: finish }],
     };
 }

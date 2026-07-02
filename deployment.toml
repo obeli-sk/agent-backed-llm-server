@@ -1,5 +1,5 @@
-# agent-llm-server: an OpenAI-compatible /v1/chat/completions endpoint backed by
-# a warm claude/codex CLI in docker. See README.md for the design.
+# agent-backed-llm-server: an OpenAI-compatible /v1/chat/completions endpoint
+# backed by a warm claude/codex CLI in docker. See README.md for the design.
 #
 # content_digest is intentionally omitted (optional); obelisk resolves each
 # component from its `location`. `just sync` fills digests from the live server.
@@ -9,7 +9,7 @@
 # the container's server.js spawns the right backend.
 
 [[activity_exec]]
-ffqn = "agent-llm:agent/claude.start"
+ffqn = "agent-backed-llm:agent/claude.start"
 params = [
   { name = "container-name", type = "string" },
   { name = "socket",         type = "string" },
@@ -22,7 +22,7 @@ max_retries = 1
 env_vars = [
   "PATH",
   "HOME",
-  { key = "AGENT_IMAGE",           value = "${AGENT_IMAGE:-ghcr.io/obeli-sk/agent-llm-server:latest}" },
+  { key = "AGENT_IMAGE",           value = "${AGENT_IMAGE:-docker.io/getobelisk/agent-backed-llm-server:latest}" },
   { key = "AGENT_BACKEND",         value = "claude" },
   { key = "AGENT_MODEL",           value = "${AGENT_MODEL:-claude-opus-4-7}" },
   { key = "AGENT_EXTRA_ARGS",      value = "${AGENT_EXTRA_ARGS:-}" },
@@ -30,7 +30,7 @@ env_vars = [
 ]
 
 [[activity_exec]]
-ffqn = "agent-llm:agent/codex.start"
+ffqn = "agent-backed-llm:agent/codex.start"
 params = [
   { name = "container-name", type = "string" },
   { name = "socket",         type = "string" },
@@ -43,7 +43,7 @@ max_retries = 1
 env_vars = [
   "PATH",
   "HOME",
-  { key = "AGENT_IMAGE",          value = "${AGENT_IMAGE:-ghcr.io/obeli-sk/agent-llm-server:latest}" },
+  { key = "AGENT_IMAGE",          value = "${AGENT_IMAGE:-docker.io/getobelisk/agent-backed-llm-server:latest}" },
   { key = "AGENT_BACKEND",        value = "codex" },
   { key = "AGENT_MODEL",          value = "${AGENT_CODEX_MODEL:-gpt-5.5}" },
   { key = "AGENT_EXTRA_ARGS",     value = "${AGENT_CODEX_EXTRA_ARGS:-}" },
@@ -53,7 +53,7 @@ env_vars = [
 # --- Agent session: provider-agnostic send / recv / cleanup -------------------
 
 [[activity_exec]]
-ffqn = "agent-llm:agent/session.send"
+ffqn = "agent-backed-llm:agent/session.send"
 params = [
   { name = "socket", type = "string" },
   { name = "input", type = "variant { prompt(string), tool-results(list<record { name: string, outcome: result<string, string> }>) }" },
@@ -67,7 +67,7 @@ max_retries = 3
 env_vars = ["PATH"]
 
 [[activity_exec]]
-ffqn = "agent-llm:agent/session.recv"
+ffqn = "agent-backed-llm:agent/session.recv"
 params = [
   { name = "socket", type = "string" },
   { name = "timeout-ms", type = "u32" },
@@ -80,7 +80,7 @@ max_retries = 3
 env_vars = ["PATH"]
 
 [[activity_exec]]
-ffqn = "agent-llm:agent/session.cleanup"
+ffqn = "agent-backed-llm:agent/session.cleanup"
 params = [
   { name = "container-name", type = "string" },
   { name = "socket",         type = "string" },
@@ -100,7 +100,7 @@ env_vars = ["PATH"]
 
 [[activity_stub]]
 name = "turn_request"
-ffqn = "agent-llm:session/turn.request"
+ffqn = "agent-backed-llm:session/turn.request"
 params = [
   { name = "response-id",          type = "string" },
   { name = "expected-prefix-hash", type = "string" },
@@ -109,14 +109,14 @@ return_type = "result<variant { delta(string), teardown }, string>"
 
 [[activity_stub]]
 name = "turn_response"
-ffqn = "agent-llm:session/turn.response"
+ffqn = "agent-backed-llm:session/turn.response"
 params = []
 return_type = "result<string, string>"
 
 # --- Session workflow ---------------------------------------------------------
 
 [[workflow_js]]
-ffqn = "agent-llm:session/workflow.session"
+ffqn = "agent-backed-llm:session/workflow.session"
 params = [
   { name = "backend",       type = "string" },
   { name = "system-prompt", type = "string" },

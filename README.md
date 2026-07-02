@@ -1,4 +1,4 @@
-# agent-llm-server
+# agent-backed-llm-server
 
 An OpenAI-compatible **LLM endpoint** backed by a Claude or Codex CLI running in
 docker. It lets a subscription (`~/.claude` / `~/.codex` login, no API key) be
@@ -15,7 +15,7 @@ FRONTEND  obelisk-agent            THE AGENT
              |
              |  standard, stateless-looking chat completions
              v
-BACKEND   agent-llm-server          THE ENDPOINT (this app)
+BACKEND   agent-backed-llm-server   THE ENDPOINT (this app)
   webhook_endpoint_js   POST /v1/chat/completions
   workflow (long-running, one per conversation)
      - owns the docker container + warm claude/codex CLI
@@ -69,7 +69,7 @@ A turn uses two stubs playing opposite roles:
   reads it with `GET /v1/executions/<id>?follow=true` (block-and-stream).
 
 ```wit
-package agent-llm:session;
+package agent-backed-llm:session;
 
 interface turn {
   // What the webhook hands in for the next turn.
@@ -94,7 +94,7 @@ interface turn {
 
 ```toml
 [[activity_stub]]
-ffqn = "agent-llm:session/turn.request"
+ffqn = "agent-backed-llm:session/turn.request"
 params = [
   { name = "response-id",          type = "string" },
   { name = "expected-prefix-hash", type = "string" },
@@ -102,7 +102,7 @@ params = [
 return_type = "result<variant { delta(string), teardown }, string>"
 
 [[activity_stub]]
-ffqn = "agent-llm:session/turn.response"
+ffqn = "agent-backed-llm:session/turn.response"
 params = []
 return_type = "result<string, string>"
 ```
@@ -203,7 +203,7 @@ workflow, instead of a self-contained agent loop) is new.
 ## Build the image
 
 ```sh
-just build   # -> ghcr.io/obeli-sk/agent-llm-server:latest
+just build   # -> docker.io/getobelisk/agent-backed-llm-server:latest
 ```
 
 ## Authenticate the backend (subscription, no API key)
