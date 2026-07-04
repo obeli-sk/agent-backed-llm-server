@@ -39,26 +39,25 @@ stub, not a direction the primitive imposes.
 A turn uses two stubs playing opposite roles:
 
 - **`turn.request`** — inbound. The workflow submits it and awaits; the webhook
-  fulfils it with the turn's new messages. Its params carry the routing info the
-  webhook needs *before* it fulfils: the pairing key and the paired reply id.
+  fulfils it with the turn's new messages (the delta JSON). Its params carry the
+  routing info the webhook needs *before* it fulfils: the pairing key and the
+  paired reply id.
 - **`turn.response`** — outbound. The workflow submits it, then self-fulfils it
   via the `stub-execution` REST call once `recv` produces the reply. The webhook
   reads it with `GET /v1/executions/<id>?follow=true` (block-and-stream).
+
+There is no in-band teardown arm: the frontend stops a session by cancelling the
+loop child (see [Idle and teardown](#idle-and-teardown)).
 
 ```wit
 package agent-backed-llm:session;
 
 interface turn {
-  // What the webhook hands in for the next turn.
-  variant next {
-    delta(string),   // JSON: messages appended since the last assistant reply
-    teardown,        // frontend abandoned the conversation / operator stop
-  }
-
   // INBOUND: workflow submits(response-id, expected-prefix-hash) & awaits;
-  // webhook injects `next` by execution id.
+  // webhook injects the result by execution id.
+  //   ok = JSON: messages appended since the last assistant reply (the delta)
   request: func(response-id: string, expected-prefix-hash: string)
-             -> result<next, string>;
+             -> result<string, string>;
 
   // OUTBOUND: workflow submits, then self-fulfils; webhook follows the result.
   //   ok  = JSON of the OpenAI assistant message { content?, tool_calls? }
@@ -76,7 +75,7 @@ params = [
   { name = "response-id",          type = "string" },
   { name = "expected-prefix-hash", type = "string" },
 ]
-return_type = "result<variant { delta(string), teardown }, string>"
+return_type = "result<string, string>"
 
 [[activity_stub]]
 ffqn = "agent-backed-llm:session/turn.response"
@@ -86,15 +85,18 @@ return_type = "result<string, string>"
 
 ## The turn handshake
 
+The parent `workflow.session` starts the container, then calls the cancellable
+child `loop.agent-loop-cancellable` directly and awaits it; that child runs:
+
 ```
-session workflow, each turn:
-  respId = joinSet.submit(turn.response, [])                     // child id created here
-  reqId  = raceSet.submit(turn.request, [respId, prefix_hash])   // params expose respId + key
-  raceSet.submitDelay(idle)                                      // persistent sleep
-  winner = raceSet.joinNext()                                    // request stub OR idle
-  delta  = obelisk.getResult(reqId)                              // -> delta | teardown
+agent loop, each turn:
+  respId = responseSubmit(joinSet)                     // child id created here
+  reqId  = requestSubmit(raceSet, respId, prefix_hash) // params expose respId + key
+  raceSet.submitDelay(idle)                            // persistent sleep
+  winner = raceSet.joinNext()                          // request stub OR idle
+  delta  = obelisk.getResult(reqId)                    // -> delta JSON
   session.send(delta); reply = session.recv()
-  obelisk.stub(respId, { ok: replyJson })                        // self-fulfil the reply
+  responseStub(respId, { ok: replyJson })              // self-fulfil the reply
   // loop with the new committed history
 ```
 
@@ -108,15 +110,15 @@ webhook, each request:
      find any turn.request whose params.expected-prefix-hash == prefix_hash
      (NO MATCH => 409, see "mismatch")
   { respId } = that stub's params
-  PUT /v1/executions/<reqId>/stub { ok: { delta } }      // deliver new messages
+  PUT /v1/executions/<reqId>/stub { ok: delta }          // deliver new messages
   reply = obelisk.get(respId)                            // block for the reply
   return it as the chat-completions response
 ```
 
 The two directions map onto plain runtime calls: the webhook submits the session
 with `obelisk.schedule`, delivers the delta with a REST `PUT .../stub`, and reads
-the reply with the blocking `obelisk.get(respId)`; the workflow self-fulfils the
-reply with `obelisk.stub(respId, …)`. Turn 0 differs only in how the session is
+the reply with the blocking `obelisk.get(respId)`; the loop self-fulfils the
+reply with `responseStub(respId, …)`. Turn 0 differs only in how the session is
 located (by the id the webhook just scheduled, since there is no history hash to
 match yet); everything after is one code path. The webhook never creates a stub.
 
@@ -142,11 +144,20 @@ match.
 
 ## Idle and teardown
 
-The workflow does not await `turn.request` forever. It races that await against a
+The loop does not await `turn.request` forever. It races that await against a
 **persistent sleep** (the idle timeout). If the sleep wins, the frontend has gone
-quiet, so the workflow runs `session.cleanup` and ends. The sleep is durable, so
-an abandoned session is still reclaimed across a server restart. The `teardown`
-arm of `next` is for an explicit operator stop.
+quiet, so the loop returns and the parent runs `session.cleanup` and ends. The
+sleep is durable, so an abandoned session is still reclaimed across a server
+restart.
+
+An explicit stop is a **cancel RPC** against the `loop.agent-loop-cancellable`
+child execution. The `-cancellable` suffix marks the child as externally
+cancellable; the frontend cancels it by id. Unlike an in-band teardown message
+(which only lands while the loop is parked on `turn.request`), the cancel reaches
+the child even mid-turn, while it is blocked awaiting the LLM reply. It does not
+change structured concurrency: the parent `workflow.session` still awaits the
+child and still runs the container cleanup afterward, so the container is not
+leaked. (The frontend app must be updated to issue this cancel RPC.)
 
 ## Tool calls
 
@@ -167,7 +178,8 @@ activity/
   agent-send.js      send one agent-input                        (session.send)
   agent-recv.js      drain one turn, typed reply                 (session.recv)
   agent-cleanup.js   shut the server down, docker rm             (session.cleanup)
-workflow/session.js  long-running per-conversation loop (the stub pair, above)
+workflow/session.js      starts the container, then awaits the cancellable child; owns cleanup
+workflow/agent-loop.js   the per-conversation turn loop (the stub pair, above), loop.agent-loop-cancellable
 webhook/chat.js      POST /v1/chat/completions (pairing + delta + reply)
 deployment.toml      FFQNs, the stub pair, and the webhook allow-list
 server.toml          moves the API/webui/external ports off the defaults (two instances)

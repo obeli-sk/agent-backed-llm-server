@@ -99,8 +99,10 @@ content_digest = "sha256:29350a3896ee19e9cf005669bfd2e60d6483f7178d33142a2689c8d
 # --- The stub pair: webhook <-> session workflow rendezvous -------------------
 # turn.request: workflow submits & awaits; webhook injects the delta by id. Its
 #   params expose the paired response-id and the committed-history hash so the
-#   webhook can pair a request and know where to read the reply.
-# turn.response: workflow submits, then self-fulfils via obelisk.stub; the
+#   webhook can pair a request and know where to read the reply. The ok payload
+#   is the delta JSON; teardown is no longer an in-band arm (the frontend stops a
+#   session by cancelling the loop.agent-loop-cancellable child instead).
+# turn.response: workflow submits, then self-fulfils via responseStub; the
 #   webhook reads it with obelisk.get (blocking).
 
 [[activity_stub]]
@@ -110,7 +112,7 @@ params = [
   { name = "response-id",          type = "string" },
   { name = "expected-prefix-hash", type = "string" },
 ]
-return_type = "result<variant { delta(string), teardown }, string>"
+return_type = "result<string, string>"
 
 [[activity_stub]]
 name = "turn_response"
@@ -119,6 +121,8 @@ params = []
 return_type = "result<string, string>"
 
 # --- Session workflow ---------------------------------------------------------
+# workflow.session owns the container and drives the turn loop through the
+# cancellable child below; digests are refilled by `just sync` after an edit.
 
 [[workflow_js]]
 ffqn = "agent-backed-llm:session/workflow.session"
@@ -128,7 +132,21 @@ params = [
 ]
 return_type = "result<string, string>"
 location = "workflow/session.js"
-content_digest = "sha256:19c7253435b76a90aa1c50457f6d555ac4e48941d069b5989e03aee3c8fc29db"
+content_digest = "sha256:c4e99058046afb92ff2630641be18b2ebce1be2aebb42944d2bf0b0477021f52"
+
+# The turn loop, split out so the frontend can stop it with the cancel RPC. The
+# `-cancellable` suffix marks the child as externally cancellable (it does not
+# change structured concurrency; the parent still awaits and cleans up the
+# container). workflow.session calls it directly.
+[[workflow_js]]
+ffqn = "agent-backed-llm:session/loop.agent-loop-cancellable"
+params = [
+  { name = "socket",        type = "string" },
+  { name = "system-prompt", type = "string" },
+]
+return_type = "result<string, string>"
+location = "workflow/agent-loop.js"
+content_digest = "sha256:c5256c29ae1cf0b93cccaace97b2ee17123efff3d44e0b4bc6bf7c564706a3ba"
 
 # --- Chat-completions webhook -------------------------------------------------
 
@@ -141,7 +159,7 @@ routes = [
 env_vars = [
   { key = "OBELISK_API_URL", value = "${OBELISK_API_URL:-http://127.0.0.1:5105}" },
 ]
-content_digest = "sha256:32cca45db9419948ec358fac5857f3d9e85775d279ccb559d14758fbd2a68184"
+content_digest = "sha256:6c63725882c48eefb1c9af2f3ea4d2c033ce89920489189c8f9884fe6c827afd"
 # List executions + read created params to pair a request to a session.
 [[webhook_endpoint_js.allowed_host]]
 pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"

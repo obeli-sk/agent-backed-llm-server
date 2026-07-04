@@ -65,7 +65,7 @@ async function turnZero(messages, systemPrompt, tools, model) {
         throw error;
     });
     const delta = messagesToInput(messagesAfterSystem(messages), null);
-    await injectStub(req.reqId, { ok: { delta: JSON.stringify(delta) } });
+    await injectStub(req.reqId, { ok: JSON.stringify(delta) });
     return { respId: req.respId, workflowExecutionId: sessionId };
 }
 
@@ -81,7 +81,7 @@ async function continuation(messages, systemPrompt, tools, lastAssistant) {
     // a finished one does, the delta was already delivered (a retry): just re-read.
     const pending = await findRequestByHash(prefixHash, true);
     if (pending) {
-        await injectStub(pending.reqId, { ok: { delta: JSON.stringify(delta) } });
+        await injectStub(pending.reqId, { ok: JSON.stringify(delta) });
         return { respId: pending.respId, workflowExecutionId: workflowExecutionIdOf(pending.reqId) };
     }
     const finished = await findRequestByHash(prefixHash, false);
@@ -90,7 +90,7 @@ async function continuation(messages, systemPrompt, tools, lastAssistant) {
 }
 
 // Block until the session's reply arrives. obelisk.get waits for the stub to be
-// fulfilled; the workflow injects { ok: <reply JSON> } or an err (idle/teardown).
+// fulfilled; the workflow injects { ok: <reply JSON> } or an err (idle/cancelled).
 function getReply(respId) {
     let raw;
     try { raw = obelisk.get(respId); }
