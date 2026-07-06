@@ -14,6 +14,12 @@ const TURN_REQUEST_FFQN = "agent-backed-llm:session/turn.request";
 const API_BASE = (process.env["OBELISK_API_URL"] || "http://127.0.0.1:5005").replace(/\/$/, "");
 const START_POLL_BUDGET_MS = 90000;   // cold container start on turn 0
 const START_POLL_INTERVAL_MS = 250;
+// Session lifetime cap, passed to the workflow at schedule time (workflows can't
+// read env; the webhook can). Bounds the number of turns a single session serves.
+const MAX_TURNS = (() => {
+    const n = parseInt(process.env["AGENT_MAX_TURNS"], 10);
+    return Number.isInteger(n) && n > 0 ? n : 200;
+})();
 
 export default async function handle(request) {
     if (request.method !== "POST") return jsonError(405, "method not allowed");
@@ -58,7 +64,7 @@ async function turnZero(messages, systemPrompt, tools, model) {
     const backend = pickBackend(model);
     const sessionId = obelisk.executionIdGenerate();
     const workflowSystem = systemPrompt + renderToolsPrompt(tools);
-    obelisk.schedule(sessionId, WORKFLOW_FFQN, [backend, workflowSystem]);
+    obelisk.schedule(sessionId, WORKFLOW_FFQN, [backend, workflowSystem, MAX_TURNS]);
 
     const req = await pollForSessionRequest(sessionId).catch((error) => {
         error.workflowExecutionId = sessionId;

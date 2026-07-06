@@ -25,15 +25,18 @@ import { responseStub } from "agent-backed-llm:session-obelisk-stub/turn";
 
 const RECV_TIMEOUT_MS = 30000;
 const IDLE_TIMEOUT = { minutes: 10 };   // persistent sleep: reclaim an abandoned session
-const MAX_TURNS = 200;                  // safety bound on a single conversation
+const DEFAULT_MAX_TURNS = 200;          // safety bound when the webhook passes nothing usable
 const MAX_CORRECTIONS = 3;
 
-export default function agentLoopCancellable(socketPath, systemPrompt) {
+// maxTurns comes from the webhook (which reads AGENT_MAX_TURNS); workflows can't
+// read env, so it arrives as a scheduled param. It bounds a session's lifetime.
+export default function agentLoopCancellable(socketPath, systemPrompt, maxTurns) {
     if (typeof socketPath !== "string" || !socketPath) throw "socket is required";
     if (typeof systemPrompt !== "string") throw "system-prompt is required";
+    const turnCap = Number.isInteger(maxTurns) && maxTurns > 0 ? maxTurns : DEFAULT_MAX_TURNS;
 
     let committed = seedHash(systemPrompt);
-    for (let turn = 0; turn < MAX_TURNS; turn += 1) {
+    for (let turn = 0; turn < turnCap; turn += 1) {
         const next = awaitTurn(committed, turn);
         if (next === null) return "session idle; cleaned up";
 

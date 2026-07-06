@@ -17,7 +17,7 @@ import { agentLoopCancellable } from "agent-backed-llm:session/loop";
 
 const STARTERS = { claude: claude.start, codex: codex.start };
 
-export default function sessionWorkflow(backend, systemPrompt) {
+export default function sessionWorkflow(backend, systemPrompt, maxTurns) {
     const which = (typeof backend === "string" && backend) ? backend : "claude";
     const start = STARTERS[which];
     if (!start) throw `unknown backend: ${which} (expected claude or codex)`;
@@ -33,7 +33,7 @@ export default function sessionWorkflow(backend, systemPrompt) {
     try {
         const startInfo = start(containerName, socketPath, systemPrompt);
         console.log(`Started ${which} agent ${startInfo.container} from ${startInfo.image}`);
-        outcome = agentLoopCancellable(socketPath, systemPrompt);
+        outcome = agentLoopCancellable(socketPath, systemPrompt, maxTurns);
     } catch (error) {
         workflowError = error;
     } finally {

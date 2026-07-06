@@ -129,10 +129,11 @@ ffqn = "agent-backed-llm:session/workflow.session"
 params = [
   { name = "backend",       type = "string" },
   { name = "system-prompt", type = "string" },
+  { name = "max-turns",     type = "u32" },
 ]
 return_type = "result<string, string>"
 location = "workflow/session.js"
-content_digest = "sha256:c4e99058046afb92ff2630641be18b2ebce1be2aebb42944d2bf0b0477021f52"
+content_digest = "sha256:fc5f550e78c9a7fea429bdeb7f7a31016b382c8f2ac51b34ce577f5f5fccb1fb"
 
 # The turn loop, split out so the frontend can stop it with the cancel RPC. The
 # `-cancellable` suffix marks the child as externally cancellable (it does not
@@ -143,10 +144,11 @@ ffqn = "agent-backed-llm:session/loop.agent-loop-cancellable"
 params = [
   { name = "socket",        type = "string" },
   { name = "system-prompt", type = "string" },
+  { name = "max-turns",     type = "u32" },
 ]
 return_type = "result<string, string>"
 location = "workflow/agent-loop.js"
-content_digest = "sha256:c5256c29ae1cf0b93cccaace97b2ee17123efff3d44e0b4bc6bf7c564706a3ba"
+content_digest = "sha256:2057ae30a1d366d67e9ad1e6e8337737e9ac8d24058b7e3d779affc7888a7c60"
 
 # --- Chat-completions webhook -------------------------------------------------
 
@@ -157,9 +159,10 @@ routes = [
   { methods = ["POST"], route = "/v1/chat/completions" },
 ]
 env_vars = [
-  { key = "OBELISK_API_URL", value = "${OBELISK_API_URL:-http://127.0.0.1:5105}" },
+  { key = "OBELISK_API_URL",  value = "${OBELISK_API_URL:-http://127.0.0.1:5105}" },
+  { key = "AGENT_MAX_TURNS",  value = "${AGENT_MAX_TURNS:-200}" },
 ]
-content_digest = "sha256:6c63725882c48eefb1c9af2f3ea4d2c033ce89920489189c8f9884fe6c827afd"
+content_digest = "sha256:e8a5ad49a4460fe8f181f45eaec2ef96cc163266ee72ae0a3e0954590a2d5efd"
 # List executions + read created params to pair a request to a session.
 [[webhook_endpoint_js.allowed_host]]
 pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
