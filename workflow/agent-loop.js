@@ -43,6 +43,13 @@ export default function agentLoopCancellable(socketPath, systemPrompt, maxTurns)
         const input = parseInput(next.delta);
         committed = rollHash(committed, canonicalInput(input));
 
+        // Invariant: respId lives in next.respSet, a join set owned by THIS
+        // cancellable child. On a frontend cancel mid-turn none of the handlers
+        // below run (a cancelled workflow is not advanced again) -- the webhook's
+        // blocking read of respId is unblocked only because cancelling this child
+        // closes respSet from the log, which cancels the pending turn.response
+        // stub. Do not move respId to a parent-owned or -scheduled join set: that
+        // would leave the webhook hanging forever on a cancel.
         try {
             const reply = sendAndDrain(socketPath, input);
             responseStub(next.respId, { ok: JSON.stringify(reply) });

@@ -148,7 +148,7 @@ params = [
 ]
 return_type = "result<string, string>"
 location = "workflow/agent-loop.js"
-content_digest = "sha256:2057ae30a1d366d67e9ad1e6e8337737e9ac8d24058b7e3d779affc7888a7c60"
+content_digest = "sha256:1582fe14211a65f2a728c210426d306ad3bea6ec8339d947ed045108998bdb11"
 
 # --- Chat-completions webhook -------------------------------------------------
 
@@ -162,7 +162,7 @@ env_vars = [
   { key = "OBELISK_API_URL",  value = "${OBELISK_API_URL:-http://127.0.0.1:5105}" },
   { key = "AGENT_MAX_TURNS",  value = "${AGENT_MAX_TURNS:-200}" },
 ]
-content_digest = "sha256:e8a5ad49a4460fe8f181f45eaec2ef96cc163266ee72ae0a3e0954590a2d5efd"
+content_digest = "sha256:d9701e2dffec6cb77867d2dd37d1e9d15c348c68c9d9013ef571a895d4bc48ce"
 # List executions + read created params to pair a request to a session.
 [[webhook_endpoint_js.allowed_host]]
 pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"

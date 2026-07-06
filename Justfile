@@ -4,6 +4,9 @@ api_url := "http://127.0.0.1:5105"          # server.toml moves the API off the 
 build:
   docker build -t {{image}} agent-server
 
+verify:
+  obelisk server verify --server-config server.toml -d deployment.toml
+
 serve:
   obelisk server run --server-config server.toml -d deployment.toml
 

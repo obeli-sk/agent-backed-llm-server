@@ -100,9 +100,21 @@ async function continuation(messages, systemPrompt, tools, lastAssistant) {
 function getReply(respId) {
     let raw;
     try { raw = obelisk.get(respId); }
-    catch (e) { throw httpError(502, `session ended without a reply: ${String(e)}`); }
+    catch (e) {
+        // A stopped session (frontend cancel of the loop child) closes the
+        // response stub's join set, so it finishes as an execution failure
+        // rather than an application err. Report that as a distinct "stopped"
+        // status so a caller can tell an intentional stop from a backend fault.
+        if (wasStopped(respId)) throw httpError(409, "session was stopped before it produced a reply");
+        throw httpError(502, `session ended without a reply: ${String(e)}`);
+    }
     try { return JSON.parse(raw); }
     catch (e) { throw httpError(502, `reply was not valid JSON: ${String(e)}`); }
+}
+
+function wasStopped(respId) {
+    try { return obelisk.getStatus(respId).finishedStatus === "executionFailure"; }
+    catch (_) { return false; }
 }
 
 // ---- pairing: rolling hash over canonical agent-inputs and replies -----------
