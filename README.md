@@ -28,7 +28,7 @@ durable CLI session (the stub pair, header-less pairing, idle teardown, tool cal
 
 ## Ports
 
-This app runs a **second** Obelisk instance next to another one, so `server.toml`
+This app runs a **second** Obelisk instance next to [`workflow-agent`](https://github.com/obeli-sk/workflow-agent), so `server.toml`
 shifts every port +100 off the defaults: API `5105`, Web UI `8180`, and the
 external HTTP server (which serves `/v1/chat/completions`) `9190`.
 
