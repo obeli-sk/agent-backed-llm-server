@@ -68,7 +68,5 @@ jobs:
       - name: Populate the nix store
         run: nix develop --command echo
 
-      # Compile the JS components, resolve every FFQN import, and type-check the
-      # deployment against the runtime images, without starting a server or db.
       - name: obelisk server verify
         run: nix develop --command obelisk server verify --server-config server.toml -d deployment.toml
