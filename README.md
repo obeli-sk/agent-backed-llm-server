@@ -53,15 +53,7 @@ curl -i http://127.0.0.1:9190/v1/chat/completions \
   }'
 ```
 
-Smoke test:
-
-```sh
-curl -i -sS -X POST http://127.0.0.1:9190/v1/chat/completions \
-  -H content-type:application/json \
-  -d '{"model":"claude","messages":[{"role":"user","content":"Reply with exactly: pong"}]}'
-```
-
-Successful responses include `x-obelisk-execution-id`, the backing session
+Successful response include `x-obelisk-execution-id`, the backing session
 workflow execution id to inspect with `obelisk execution status/events/result`.
 
 Point the
