@@ -5,3 +5,11 @@ api.listening_addr = "127.0.0.1:5105"       # gRPC/REST API; matches OBELISK_API
 webui.listening_addr = "127.0.0.1:8180"     # Web UI
 external.listening_addr = "127.0.0.1:9190"  # external HTTP server; serves POST /v1/chat/completions
 database.sqlite.directory = "${DATA_DIR}/obelisk-sqlite-agent-backed-llm-server"
+
+allow_exec_activities = [
+  "sha256:52394d8c340e8ae59527ccc7bd425f46a35f928a28caf919e0c74ac1774c7aae", # claude.start (agent-backed-llm:agent/claude.start)
+  "sha256:52394d8c340e8ae59527ccc7bd425f46a35f928a28caf919e0c74ac1774c7aae", # codex.start (agent-backed-llm:agent/codex.start)
+  "sha256:536a62d943260b22abcd501467cc819534b18a9cc930e238f0103afdc3e5bac4", # session.send (agent-backed-llm:agent/session.send)
+  "sha256:b1a0cb695e54841f4c3cbe1c2ed28f944c0321a0ee9bf6e552a8360fa74fba86", # session.recv (agent-backed-llm:agent/session.recv)
+  "sha256:29350a3896ee19e9cf005669bfd2e60d6483f7178d33142a2689c8d5480dc2d6", # session.cleanup (agent-backed-llm:agent/session.cleanup)
+]

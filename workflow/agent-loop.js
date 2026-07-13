@@ -70,22 +70,21 @@ export default function agentLoopCancellable(socketPath, systemPrompt, maxTurns)
 //   { respSet, respId, delta } | null (idle timeout).
 function awaitTurn(committed, turn) {
     const respSet = obelisk.createJoinSet({ name: `response-${turn}` });
-    const respId = responseSubmit(respSet);
+    const respId = responseSubmit(respSet); // Webhook will receive the answer here
 
     const raceSet = obelisk.createJoinSet({ name: `request-${turn}` });
     const reqId = requestSubmit(raceSet, respId, committed);
-    raceSet.submitDelay(IDLE_TIMEOUT);
+    const delayId = raceSet.submitDelay(IDLE_TIMEOUT);
 
     try {
-        const winner = raceSet.joinNext();
-        if (winner.type === "delay") {
-            // Idle: no request arrived in time. Drop the unanswered response stub.
+        const delta = raceSet.joinNext();
+        if (raceSet.lastId == delayId) {
+            // Drop the unanswered response stub.
             responseStub(respId, { err: "session idle timeout" });
             respSet.close();
             return null;
         }
-        const delta = obelisk.getResult(reqId);   // ok = the delta JSON string
-        if (typeof delta !== "string") throw `turn.request returned an unexpected value: ${JSON.stringify(delta)}`;
+        // stub activity turn_request won, meaning webhook received a request for this workflow
         return { respSet, respId, delta };
     } finally {
         // Cancel the losing idle delay once the request stub has completed.

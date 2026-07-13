@@ -148,7 +148,7 @@ params = [
 ]
 return_type = "result<string, string>"
 location = "workflow/agent-loop.js"
-content_digest = "sha256:1582fe14211a65f2a728c210426d306ad3bea6ec8339d947ed045108998bdb11"
+content_digest = "sha256:fa2e7164dde2c0db619f0eb1360d1218e71759b81c09ba12140a2e54ccdb32a6"
 
 # --- Chat-completions webhook -------------------------------------------------
 

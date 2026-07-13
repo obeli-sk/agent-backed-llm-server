@@ -93,8 +93,8 @@ agent loop, each turn:
   respId = responseSubmit(joinSet)                     // child id created here
   reqId  = requestSubmit(raceSet, respId, prefix_hash) // params expose respId + key
   raceSet.submitDelay(idle)                            // persistent sleep
-  winner = raceSet.joinNext()                          // request stub OR idle
-  delta  = obelisk.getResult(reqId)                    // -> delta JSON
+  delta  = raceSet.joinNext()                          // request value, or null for idle delay
+  assert(raceSet.lastId == reqId)                      // confirms the request stub won
   session.send(delta); reply = session.recv()
   responseStub(respId, { ok: replyJson })              // self-fulfil the reply
   // loop with the new committed history
