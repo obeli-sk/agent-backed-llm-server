@@ -1,2 +1,6 @@
 use flake .
 
+# The API port requires a bearer token since 0.40.0. Minting it here exports it
+# for both the server (reads OBELISK__API__TOKEN) and the chat webhook (which
+# presents it on its API calls), so a single value authenticates both sides.
+export OBELISK__API__TOKEN=$(obelisk generate token --json | jq -r .token)

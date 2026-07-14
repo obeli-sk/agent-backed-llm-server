@@ -12,6 +12,9 @@ const WORKFLOW_FFQN = "agent-backed-llm:session/workflow.session";
 const TURN_REQUEST_FFQN = "agent-backed-llm:session/turn.request";
 
 const API_BASE = (process.env["OBELISK_API_URL"] || "http://127.0.0.1:5005").replace(/\/$/, "");
+// Opaque placeholder; Obelisk substitutes the real token into the outgoing
+// `authorization` header (see the allowed_host secrets in deployment.toml).
+const API_TOKEN = process.env["OBELISK__API__TOKEN"];
 const START_POLL_BUDGET_MS = 90000;   // cold container start on turn 0
 const START_POLL_INTERVAL_MS = 250;
 // Session lifetime cap, passed to the workflow at schedule time (workflows can't
@@ -297,7 +300,7 @@ async function readParams(id) {
 async function injectStub(id, result) {
     const resp = await fetch(`${API_BASE}/v1/executions/${enc(id)}/stub`, {
         method: "PUT",
-        headers: { accept: "application/json", "content-type": "application/json" },
+        headers: { accept: "application/json", "content-type": "application/json", authorization: authHeader() },
         body: JSON.stringify(result),
     });
     if (!resp.ok) throw httpError(502, `stub delivery failed: HTTP ${resp.status}: ${await resp.text()}`);
@@ -305,10 +308,17 @@ async function injectStub(id, result) {
 
 async function apiGetJson(methodPath) {
     const path = methodPath.replace(/^GET /, "");
-    const resp = await fetch(`${API_BASE}${path}`, { headers: { accept: "application/json" } });
+    const resp = await fetch(`${API_BASE}${path}`, { headers: { accept: "application/json", authorization: authHeader() } });
     const text = await resp.text();
     if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${text}`);
     return JSON.parse(text);
+}
+
+// Bearer token for the API port (5005/5105). The API port denies unauthenticated
+// requests since 0.40.0; `API_TOKEN` is a placeholder Obelisk swaps for the real one.
+function authHeader() {
+    if (!API_TOKEN) throw httpError(500, "OBELISK__API__TOKEN is not set");
+    return `Bearer ${API_TOKEN}`;
 }
 
 // ---- misc --------------------------------------------------------------------

@@ -162,14 +162,22 @@ env_vars = [
   { key = "OBELISK_API_URL",  value = "${OBELISK_API_URL:-http://127.0.0.1:5105}" },
   { key = "AGENT_MAX_TURNS",  value = "${AGENT_MAX_TURNS:-200}" },
 ]
-content_digest = "sha256:d9701e2dffec6cb77867d2dd37d1e9d15c348c68c9d9013ef571a895d4bc48ce"
+content_digest = "sha256:894a00e381d2ab66d0fb0a3a9a18b2ce5bee99b323e70323909fe568cca6a8c0"
 # List executions + read created params to pair a request to a session.
 [[webhook_endpoint_js.allowed_host]]
 pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
 methods = ["GET"]
 request_url_regex = "^GET ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions"
+# The API port requires a bearer token since 0.40.0; Obelisk swaps the placeholder
+# in the `authorization` header for the real token.
+[webhook_endpoint_js.allowed_host.secrets]
+env_vars = ["OBELISK__API__TOKEN"]
+replace_in = ["headers"]
 # Inject the delta into a turn.request stub.
 [[webhook_endpoint_js.allowed_host]]
 pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
 methods = ["PUT"]
 request_url_regex = "^PUT ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions/[^/]+/stub$"
+[webhook_endpoint_js.allowed_host.secrets]
+env_vars = ["OBELISK__API__TOKEN"]
+replace_in = ["headers"]
