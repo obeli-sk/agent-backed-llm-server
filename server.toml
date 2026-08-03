@@ -13,3 +13,13 @@ allow_exec_activities = [
   "sha256:b1a0cb695e54841f4c3cbe1c2ed28f944c0321a0ee9bf6e552a8360fa74fba86", # session.recv (agent-backed-llm:agent/session.recv)
   "sha256:29350a3896ee19e9cf005669bfd2e60d6483f7178d33142a2689c8d5480dc2d6", # session.cleanup (agent-backed-llm:agent/session.cleanup)
 ]
+
+[secrets]
+OBELISK__API__TOKEN = { env = "OBELISK__API__TOKEN" }
+
+[[outbound_http.allowed_host]]
+pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
+methods = ["GET", "PUT"]
+request_url_regex = "^(GET ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions|PUT ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions/[^/]+/stub$)"
+secrets = ["OBELISK__API__TOKEN"]
+replace_in = ["headers"]
