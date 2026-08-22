@@ -1,2 +1,2 @@
-obelisk 0.41.3
+obelisk 0.41.4
 node.js v22.23.2
