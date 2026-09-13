@@ -20,6 +20,8 @@
             nodejs_22
             just
             docker
+            jq
+            curl
           ];
           withObelisk = commonDeps ++ [ obelisk.packages.${system}.default ];
         in

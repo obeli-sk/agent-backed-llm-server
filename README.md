@@ -61,6 +61,14 @@ curl -i http://127.0.0.1:9190/v1/chat/completions \
   }'
 ```
 
+Or use the helper, which takes a prompt and an optional model (default `claude`):
+
+```sh
+just chat "Say hi in one word."          # claude backend
+just chat "Say hi in one word." codex    # codex backend
+# equivalently: ./scripts/chat.sh "<prompt>" [model]
+```
+
 Successful responses include `x-obelisk-execution-id`, the backing session
 workflow execution id to inspect with `obelisk execution status/events/result`.
 

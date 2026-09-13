@@ -9,3 +9,9 @@ verify:
 
 serve:
   obelisk server run --server-config server.toml -d deployment.toml
+
+# Send one prompt to the running endpoint and print the reply.
+#   just chat "Say hi in one word."          # claude backend
+#   just chat "2+2?" codex                    # codex backend
+chat prompt model="claude":
+  ./scripts/chat.sh "{{prompt}}" "{{model}}"
