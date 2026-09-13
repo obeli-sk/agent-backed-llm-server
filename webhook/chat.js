@@ -245,6 +245,8 @@ function renderToolsPrompt(tools) {
         "",
         "",
         "# Tools",
+        "Do not use your built-in shell or other built-in tools to perform any tool listed below.",
+        "Those tools exist only in the caller's environment. Request them by returning the JSON envelope, then use the result supplied in the next message.",
         'To call tools, reply with a JSON object {"tool_calls":[{"name":"...","args":{...}}]}.',
         'To answer, reply with {"final":"..."} or plain prose. One batch of tool_calls per reply.',
         "",
