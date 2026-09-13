@@ -44,7 +44,7 @@ export default async function handle(request) {
         if (lastAssistant === -1) {
             turn = await turnZero(messages, systemPrompt, tools, model);
         } else {
-            turn = await continuation(messages, systemPrompt, tools, lastAssistant);
+            turn = await continuation(messages, systemPrompt, tools, model, lastAssistant);
         }
 
         let reply;
@@ -67,7 +67,7 @@ async function turnZero(messages, systemPrompt, tools, model) {
     const backend = pickBackend(model);
     const cliModel = pickModel(model);
     const sessionId = obelisk.executionIdGenerate();
-    const workflowSystem = systemPrompt + renderToolsPrompt(tools);
+    const workflowSystem = renderWorkflowSystemPrompt(backend, tools, systemPrompt);
     obelisk.schedule(sessionId, WORKFLOW_FFQN, [backend, workflowSystem, MAX_TURNS, cliModel]);
 
     const req = await pollForSessionRequest(sessionId).catch((error) => {
@@ -81,8 +81,8 @@ async function turnZero(messages, systemPrompt, tools, model) {
 
 // Turn k>=1: pair by the committed-history hash, deliver the delta (idempotently),
 // and return the response-stub id to read the reply from.
-async function continuation(messages, systemPrompt, tools, lastAssistant) {
-    const workflowSystem = systemPrompt + renderToolsPrompt(tools);
+async function continuation(messages, systemPrompt, tools, model, lastAssistant) {
+    const workflowSystem = renderWorkflowSystemPrompt(pickBackend(model), tools, systemPrompt);
     const prefixHash = computePrefixHash(workflowSystem, messages, lastAssistant);
     const priorToolCalls = toolCallsOf(messages[lastAssistant]);
     const delta = messagesToInput(messages.slice(lastAssistant + 1), priorToolCalls);
@@ -253,6 +253,13 @@ function renderToolsPrompt(tools) {
         "Available tools:",
         lines.join("\n"),
     ].join("\n");
+}
+
+function renderWorkflowSystemPrompt(backend, tools, systemPrompt) {
+    return `${backend} is running in docker, its terminal inputs and outputs are wired through an app that acts as a LLM gateway. \n`
+        + renderToolsPrompt(tools)
+        + "\n# The app's prompt\n"
+        + systemPrompt;
 }
 
 // ---- REST helpers (fetch to the local Obelisk API) ---------------------------
