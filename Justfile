@@ -9,6 +9,3 @@ verify:
 
 serve:
   obelisk server run --server-config server.toml -d deployment.toml
-
-sync:
-  obelisk deployment get $(obelisk deployment active -a {{api_url}}) --force -a {{api_url}}
