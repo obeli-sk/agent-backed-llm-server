@@ -65,9 +65,10 @@ export default async function handle(request) {
 // deliver the opening user message(s) through its first turn.request.
 async function turnZero(messages, systemPrompt, tools, model) {
     const backend = pickBackend(model);
+    const cliModel = pickModel(model);
     const sessionId = obelisk.executionIdGenerate();
     const workflowSystem = systemPrompt + renderToolsPrompt(tools);
-    obelisk.schedule(sessionId, WORKFLOW_FFQN, [backend, workflowSystem, MAX_TURNS]);
+    obelisk.schedule(sessionId, WORKFLOW_FFQN, [backend, workflowSystem, MAX_TURNS, cliModel]);
 
     const req = await pollForSessionRequest(sessionId).catch((error) => {
         error.workflowExecutionId = sessionId;
@@ -327,6 +328,15 @@ function pickBackend(model) {
     const m = (model || "").toLowerCase();
     if (m.includes("codex") || m.startsWith("gpt") || m.startsWith("o1") || m.startsWith("o3")) return "codex";
     return "claude";
+}
+// Prefix-stripped passthrough: "<backend>/<model>" (e.g. "claude/opus-4-8",
+// "codex/gpt-5.5") passes everything after the first "/" to the CLI as the
+// model. No "/" (e.g. bare "claude" or "gpt-5") => "" => the deploy-time
+// default. The model is fixed when the session starts (turn 0); continuation
+// turns reuse it, since pairing hashes history, not the model.
+function pickModel(model) {
+    const i = (model || "").indexOf("/");
+    return i === -1 ? "" : model.slice(i + 1).trim();
 }
 function contentString(content) {
     if (typeof content === "string") return content;

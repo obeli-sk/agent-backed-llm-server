@@ -96,6 +96,9 @@ async function main() {
   const containerName = parseJsonArg(2, "container-name");
   const socketPath = parseJsonArg(3, "socket");
   const systemPrompt = parseJsonArg(4, "system-prompt");
+  // Per-request model (from the webhook's "<backend>/<model>"); "" => env default.
+  const modelArg = process.argv[5] === undefined ? "" : parseJsonArg(5, "model");
+  const model = typeof modelArg === "string" ? modelArg : "";
   if (!containerName) failPermanent("container-name must not be empty");
   if (!socketPath) failPermanent("socket must not be empty");
   if (typeof systemPrompt !== "string") failPermanent("system-prompt must be a string");
@@ -146,7 +149,7 @@ async function main() {
     "--mount", `type=bind,src=${hostAuthDir},dst=${AUTH.mount}`,
     "-e", `${AUTH.envVar}=${AUTH.mount}`,
     "-e", `AGENT_BACKEND=${backend}`,
-    "-e", `AGENT_MODEL=${process.env.AGENT_MODEL || ""}`,
+    "-e", `AGENT_MODEL=${model || process.env.AGENT_MODEL || ""}`,
     "-e", `AGENT_EXTRA_ARGS=${process.env.AGENT_EXTRA_ARGS || ""}`,
     "-e", `AGENT_SYSTEM_PROMPT_PATH=${containerPrompt}`,
     IMAGE_NAME,

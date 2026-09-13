@@ -14,6 +14,7 @@ params = [
   { name = "container-name", type = "string" },
   { name = "socket",         type = "string" },
   { name = "system-prompt",  type = "string" },
+  { name = "model",          type = "string" },
 ]
 return_type = "result<record { container: string, image: string, socket: string, id: string }, string>"
 location = "activity/agent-start.js"
@@ -28,7 +29,7 @@ env_vars = [
   { key = "AGENT_EXTRA_ARGS",      value = "${AGENT_EXTRA_ARGS:-}" },
   { key = "AGENT_HOST_CLAUDE_DIR", value = "${AGENT_HOST_CLAUDE_DIR:-${HOME}/.claude}" },
 ]
-content_digest = "sha256:52394d8c340e8ae59527ccc7bd425f46a35f928a28caf919e0c74ac1774c7aae"
+content_digest = "sha256:73ff0d2acf3f1130c91760452dbd3a6fd8d84f094ac32e15586c60b314d873f2"
 
 [[activity_exec]]
 ffqn = "agent-backed-llm:agent/codex.start"
@@ -36,6 +37,7 @@ params = [
   { name = "container-name", type = "string" },
   { name = "socket",         type = "string" },
   { name = "system-prompt",  type = "string" },
+  { name = "model",          type = "string" },
 ]
 return_type = "result<record { container: string, image: string, socket: string, id: string }, string>"
 location = "activity/agent-start.js"
@@ -50,7 +52,7 @@ env_vars = [
   { key = "AGENT_EXTRA_ARGS",     value = "${AGENT_CODEX_EXTRA_ARGS:-}" },
   { key = "AGENT_HOST_CODEX_DIR", value = "${AGENT_HOST_CODEX_DIR:-${HOME}/.codex}" },
 ]
-content_digest = "sha256:52394d8c340e8ae59527ccc7bd425f46a35f928a28caf919e0c74ac1774c7aae"
+content_digest = "sha256:73ff0d2acf3f1130c91760452dbd3a6fd8d84f094ac32e15586c60b314d873f2"
 
 # --- Agent session: provider-agnostic send / recv / cleanup -------------------
 
@@ -130,10 +132,11 @@ params = [
   { name = "backend",       type = "string" },
   { name = "system-prompt", type = "string" },
   { name = "max-turns",     type = "u32" },
+  { name = "model",         type = "string" },
 ]
 return_type = "result<string, string>"
 location = "workflow/session.js"
-content_digest = "sha256:fc5f550e78c9a7fea429bdeb7f7a31016b382c8f2ac51b34ce577f5f5fccb1fb"
+content_digest = "sha256:03ee73b280f05b7648d00248110a88057a56a69111c1cb4c5a7d76de7060ba6d"
 
 # The turn loop, split out so the frontend can stop it with the cancel RPC. The
 # `-cancellable` suffix marks the child as externally cancellable (it does not
@@ -162,7 +165,7 @@ env_vars = [
   { key = "OBELISK_API_URL",  value = "${OBELISK_API_URL:-http://127.0.0.1:5105}" },
   { key = "AGENT_MAX_TURNS",  value = "${AGENT_MAX_TURNS:-200}" },
 ]
-content_digest = "sha256:894a00e381d2ab66d0fb0a3a9a18b2ce5bee99b323e70323909fe568cca6a8c0"
+content_digest = "sha256:fd24c8273e579fd407ba05f5c805bc40f42c6d6cb5d2dc6103ff281e321b8519"
 # One scoped allowed_host keeps the component and operator policies aligned for both API calls.
 #   GET /v1/executions*            -> list + read created params to pair a request.
 #   PUT /v1/executions/<id>/stub   -> inject the delta into a turn.request stub.

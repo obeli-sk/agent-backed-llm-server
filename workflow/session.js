@@ -17,11 +17,12 @@ import { agentLoopCancellable } from "agent-backed-llm:session/loop";
 
 const STARTERS = { claude: claude.start, codex: codex.start };
 
-export default function sessionWorkflow(backend, systemPrompt, maxTurns) {
+export default function sessionWorkflow(backend, systemPrompt, maxTurns, model) {
     const which = (typeof backend === "string" && backend) ? backend : "claude";
     const start = STARTERS[which];
     if (!start) throw `unknown backend: ${which} (expected claude or codex)`;
     if (typeof systemPrompt !== "string") throw "system-prompt is required";
+    const cliModel = typeof model === "string" ? model : "";
 
     const executionId = obelisk.executionIdCurrent();
     const sessionId = sanitize(executionId);
@@ -31,7 +32,7 @@ export default function sessionWorkflow(backend, systemPrompt, maxTurns) {
     let workflowError = null;
     let outcome = "session ended";
     try {
-        const startInfo = start(containerName, socketPath, systemPrompt);
+        const startInfo = start(containerName, socketPath, systemPrompt, cliModel);
         console.log(`Started ${which} agent ${startInfo.container} from ${startInfo.image}`);
         outcome = agentLoopCancellable(socketPath, systemPrompt, maxTurns);
     } catch (error) {

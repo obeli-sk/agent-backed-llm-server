@@ -78,3 +78,21 @@ OpenAI client) at
 `http://127.0.0.1:9190` as its `LLM_BASE_URL`. `model` selects the backend: a
 model containing `codex`, or starting with `gpt`/`o1`/`o3`, routes to codex;
 otherwise claude.
+
+### Selecting the model per request
+
+`model` can also pick the concrete CLI model, as `<backend>/<model>`: everything
+after the first `/` is passed through to the CLI (`claude --model …` /
+`codex -m …`). Without a `/`, the backend's deploy-time default applies
+(`AGENT_MODEL` / `AGENT_CODEX_MODEL`, see [Run](#run)).
+
+```sh
+just chat "hi" claude/opus       # claude, model "opus"
+just chat "hi" codex/gpt-5.5     # codex, model "gpt-5.5"
+just chat "hi" claude            # claude, deploy-time default model
+```
+
+The model is fixed when the session starts (turn 0). A warm session keeps its
+model for the rest of the conversation; changing `model` mid-conversation re-pairs
+to the existing session (pairing hashes the history, not the model) and is
+ignored.
