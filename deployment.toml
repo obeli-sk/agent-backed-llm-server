@@ -1,9 +1,6 @@
 # agent-backed-llm-server: an OpenAI-compatible /v1/chat/completions endpoint
 # backed by a warm claude/codex CLI in docker. See DESIGN.md for the design.
 #
-# content_digest is intentionally omitted (optional); obelisk resolves each
-# component from its `location`. `just sync` fills digests from the live server.
-
 # --- Agent lifecycle: provider-specific start (one per backend) ---------------
 # Both point to agent-start.js; AGENT_BACKEND selects the auth mount + CLI, and
 # the container's server.js spawns the right backend.
@@ -29,7 +26,6 @@ env_vars = [
   { key = "AGENT_EXTRA_ARGS",      value = "${AGENT_EXTRA_ARGS:-}" },
   { key = "AGENT_HOST_CLAUDE_DIR", value = "${AGENT_HOST_CLAUDE_DIR:-${HOME}/.claude}" },
 ]
-content_digest = "sha256:73ff0d2acf3f1130c91760452dbd3a6fd8d84f094ac32e15586c60b314d873f2"
 
 [[activity_exec]]
 ffqn = "agent-backed-llm:agent/codex.start"
@@ -52,7 +48,6 @@ env_vars = [
   { key = "AGENT_EXTRA_ARGS",     value = "${AGENT_CODEX_EXTRA_ARGS:-}" },
   { key = "AGENT_HOST_CODEX_DIR", value = "${AGENT_HOST_CODEX_DIR:-${HOME}/.codex}" },
 ]
-content_digest = "sha256:73ff0d2acf3f1130c91760452dbd3a6fd8d84f094ac32e15586c60b314d873f2"
 
 # --- Agent session: provider-agnostic send / recv / cleanup -------------------
 
@@ -69,7 +64,6 @@ params_via_stdin = true
 exec.lock_expiry.seconds = 30
 max_retries = 3
 env_vars = ["PATH"]
-content_digest = "sha256:536a62d943260b22abcd501467cc819534b18a9cc930e238f0103afdc3e5bac4"
 
 [[activity_exec]]
 ffqn = "agent-backed-llm:agent/session.recv"
@@ -83,7 +77,6 @@ exec.lock_expiry.minutes = 10
 max_output_bytes = 1048576
 max_retries = 3
 env_vars = ["PATH"]
-content_digest = "sha256:b1a0cb695e54841f4c3cbe1c2ed28f944c0321a0ee9bf6e552a8360fa74fba86"
 
 [[activity_exec]]
 ffqn = "agent-backed-llm:agent/session.cleanup"
@@ -96,7 +89,6 @@ location = "activity/agent-cleanup.js"
 exec.lock_expiry.seconds = 30
 max_retries = 3
 env_vars = ["PATH"]
-content_digest = "sha256:29350a3896ee19e9cf005669bfd2e60d6483f7178d33142a2689c8d5480dc2d6"
 
 # --- The stub pair: webhook <-> session workflow rendezvous -------------------
 # turn.request: workflow submits & awaits; webhook injects the delta by id. Its
@@ -136,7 +128,6 @@ params = [
 ]
 return_type = "result<string, string>"
 location = "workflow/session.js"
-content_digest = "sha256:03ee73b280f05b7648d00248110a88057a56a69111c1cb4c5a7d76de7060ba6d"
 
 # The turn loop, split out so the frontend can stop it with the cancel RPC. The
 # `-cancellable` suffix marks the child as externally cancellable (it does not
@@ -151,7 +142,6 @@ params = [
 ]
 return_type = "result<string, string>"
 location = "workflow/agent-loop.js"
-content_digest = "sha256:deff0fbe233764cd6206a3f044477387e9471a63e42366b2e4f4580010ef91b7"
 
 # --- Chat-completions webhook -------------------------------------------------
 
@@ -165,7 +155,6 @@ env_vars = [
   { key = "OBELISK_API_URL",  value = "${OBELISK_API_URL:-http://127.0.0.1:5105}" },
   { key = "AGENT_MAX_TURNS",  value = "${AGENT_MAX_TURNS:-200}" },
 ]
-content_digest = "sha256:fd24c8273e579fd407ba05f5c805bc40f42c6d6cb5d2dc6103ff281e321b8519"
 # One scoped allowed_host keeps the component and operator policies aligned for both API calls.
 #   GET /v1/executions*            -> list + read created params to pair a request.
 #   PUT /v1/executions/<id>/stub   -> inject the delta into a turn.request stub.
