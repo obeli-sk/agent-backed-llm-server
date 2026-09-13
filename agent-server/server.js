@@ -52,6 +52,14 @@ if (!SOCKET_PATH) {
 
 const BACKEND = process.env.AGENT_BACKEND || "claude";
 const MODEL = process.env.AGENT_MODEL || "";
+// Orphan guard: self-terminate if no op arrives for this long, so a container
+// cannot outlive a wedged session workflow (a failed auto-upgrade, a crash, or
+// a bug that skips session.cleanup). Keep it well above the workflow idle
+// timeout so a healthy idle session is always reclaimed by the workflow first.
+const CONTAINER_IDLE_MS = (() => {
+  const n = parseInt(process.env.AGENT_CONTAINER_IDLE_MS, 10);
+  return Number.isInteger(n) && n > 0 ? n : 45 * 60 * 1000;
+})();
 const EXTRA = (process.env.AGENT_EXTRA_ARGS || "").trim();
 const SYSTEM_PROMPT_PATH = process.env.AGENT_SYSTEM_PROMPT_PATH;
 if (!SYSTEM_PROMPT_PATH) {
@@ -616,7 +624,9 @@ async function opShutdown() {
   return { ok: true };
 }
 
+let lastActivityAt = Date.now();
 async function dispatch(line) {
+  lastActivityAt = Date.now();
   let cmd;
   try { cmd = JSON.parse(line); }
   catch (e) { return { ok: false, error: `bad json: ${e.message}` }; }
@@ -649,6 +659,17 @@ server.listen(SOCKET_PATH, () => {
   try { fs.chmodSync(SOCKET_PATH, 0o600); } catch (_) {}
   console.error(`[server] listening on ${SOCKET_PATH} (backend=${BACKEND})`);
 });
+
+// unref so the watchdog itself never keeps the process alive.
+const idleWatch = setInterval(() => {
+  if (shuttingDown) return;
+  const idleMs = Date.now() - lastActivityAt;
+  if (idleMs >= CONTAINER_IDLE_MS) {
+    console.error(`[server] no op for ${idleMs}ms (limit ${CONTAINER_IDLE_MS}ms); self-terminating (orphan guard)`);
+    opShutdown();
+  }
+}, 60000);
+idleWatch.unref();
 
 function shutdownAndExit(signal) {
   console.error(`[server] received ${signal}, shutting down`);

@@ -24,7 +24,7 @@ import { requestSubmit, responseSubmit } from "agent-backed-llm:session-obelisk-
 import { responseStub } from "agent-backed-llm:session-obelisk-stub/turn";
 
 const RECV_TIMEOUT_MS = 30000;
-const IDLE_TIMEOUT = { minutes: 10 };   // persistent sleep: reclaim an abandoned session
+const IDLE_TIMEOUT = { minutes: 30 };   // persistent sleep: reclaim an abandoned session
 const DEFAULT_MAX_TURNS = 200;          // safety bound when the webhook passes nothing usable
 const MAX_CORRECTIONS = 3;
 

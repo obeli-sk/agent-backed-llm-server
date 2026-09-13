@@ -150,6 +150,13 @@ quiet, so the loop returns and the parent runs `session.cleanup` and ends. The
 sleep is durable, so an abandoned session is still reclaimed across a server
 restart.
 
+The idle timeout is 30 minutes. As a backstop, the container also self-exits
+after `AGENT_CONTAINER_IDLE_MS` (default 45 min) with no socket op, so a
+container cannot outlive its session workflow if the workflow can never run its
+cleanup (a failed auto-upgrade after an incompatible redeploy, a crash, or a
+bug). Keep that value above the workflow idle timeout so a healthy idle session
+is always reclaimed by the workflow first; the guard only fires for an orphan.
+
 An explicit stop is a **cancel RPC** against the `loop.agent-loop-cancellable`
 child execution. The `-cancellable` suffix marks the child as externally
 cancellable; the frontend cancels it by id. Unlike an in-band teardown message

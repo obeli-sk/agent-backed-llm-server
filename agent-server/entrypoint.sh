@@ -11,6 +11,8 @@ set -euo pipefail
 #   AGENT_MODEL                 model id (empty => backend/config default)
 #   AGENT_WORKDIR               cwd for the LLM CLI, default /tmp/work
 #   AGENT_EXTRA_ARGS            extra args appended to the CLI invocation
+#   AGENT_CONTAINER_IDLE_MS     orphan guard: self-exit after this many ms with
+#                               no op (default 45m; keep above the workflow idle)
 #   AGENT_SYSTEM_PROMPT_PATH    deployment-provided prompt file
 #   AGENT_HOST_CLAUDE_DIR       claude config mount (default /host-claude)
 #   AGENT_HOST_CODEX_DIR        codex config mount (default /host-codex)
