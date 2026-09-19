@@ -131,7 +131,14 @@ function drainTurn(socketPath) {
     const outcome = session.recv(socketPath, RECV_TIMEOUT_MS);
     if (outcome && typeof outcome === "object" && outcome.reply) {
         const r = outcome.reply;
-        return (r && typeof r === "object" && "reply" in r) ? r.reply : r;
+        if (r && typeof r === "object" && "reply" in r) {
+            const reply = r.reply;
+            if (reply && typeof reply === "object" && Array.isArray(reply.tool_calls)) {
+                return { ...reply, presentation: typeof r.presentation === "string" ? r.presentation : "" };
+            }
+            return reply;
+        }
+        return r;
     }
     throw `unexpected recv outcome: ${JSON.stringify(outcome)}`;
 }
@@ -147,9 +154,11 @@ function correctionPrompt(detail) {
 
 // ---- error classification (recv err variant, JSON-encoded in the message) ----
 function errPayload(error) {
-    const raw = (error && typeof error === "object" && typeof error.message === "string")
-        ? error.message
-        : (typeof error === "string" ? error : null);
+    const value = error && typeof error === "object" && "value" in error ? error.value : error;
+    if (value && typeof value === "object") return value;
+    const raw = typeof value === "string"
+        ? value
+        : (error && typeof error === "object" && typeof error.message === "string" ? error.message : null);
     if (raw === null) return null;
     try {
         const parsed = JSON.parse(raw);

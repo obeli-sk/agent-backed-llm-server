@@ -214,7 +214,7 @@ function openaiResponse(reply, model) {
     if (Array.isArray(reply.tool_calls)) {
         message = {
             role: "assistant",
-            content: null,
+            content: typeof reply.presentation === "string" && reply.presentation ? reply.presentation : null,
             tool_calls: reply.tool_calls.map((c, i) => ({
                 id: "call_" + i,
                 type: "function",
