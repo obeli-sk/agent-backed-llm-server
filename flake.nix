@@ -3,7 +3,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     obelisk = {
-      url = "github:obeli-sk/obelisk/latest-pre";
+      url = "github:obeli-sk/obelisk/latest-rc";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
@@ -20,7 +20,9 @@
             nodejs_22
             just
             docker
+            gh
             jq
+            yq-go
             curl
           ];
           withObelisk = commonDeps ++ [ obelisk.packages.${system}.default ];

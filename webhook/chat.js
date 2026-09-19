@@ -8,13 +8,16 @@
 // session's turn.request stub, and read the reply from its turn.response stub.
 // See README.md for the design and the stub pair.
 
+import * as obelisk from "obelisk:webhook@1.0.0";
+import * as dynamic from "obelisk:webhook-dynamic@1.0.0";
+
 const WORKFLOW_FFQN = "agent-backed-llm:session/workflow.session";
 const TURN_REQUEST_FFQN = "agent-backed-llm:session/turn.request";
 
 const API_BASE = (process.env["OBELISK_API_URL"] || "http://127.0.0.1:5005").replace(/\/$/, "");
 // Opaque placeholder; Obelisk substitutes the real token into the outgoing
 // `authorization` header (see the allowed_host secrets in deployment.toml).
-const API_TOKEN = process.env["OBELISK__API__TOKEN"];
+const API_TOKEN = process.env["OBELISK_API_TOKEN"];
 const START_POLL_BUDGET_MS = 90000;   // cold container start on turn 0
 const START_POLL_INTERVAL_MS = 250;
 // Session lifetime cap, passed to the workflow at schedule time (workflows can't
@@ -68,7 +71,7 @@ async function turnZero(messages, systemPrompt, tools, model) {
     const cliModel = pickModel(model);
     const sessionId = obelisk.executionIdGenerate();
     const workflowSystem = renderWorkflowSystemPrompt(backend, tools, systemPrompt);
-    obelisk.schedule(sessionId, WORKFLOW_FFQN, [backend, workflowSystem, MAX_TURNS, cliModel]);
+    dynamic.schedule(sessionId, WORKFLOW_FFQN, [backend, workflowSystem, MAX_TURNS, cliModel]);
 
     const req = await pollForSessionRequest(sessionId).catch((error) => {
         error.workflowExecutionId = sessionId;
@@ -327,7 +330,7 @@ async function apiGetJson(methodPath) {
 // Bearer token for the API port (5005/5105). The API port denies unauthenticated
 // requests since 0.40.0; `API_TOKEN` is a placeholder Obelisk swaps for the real one.
 function authHeader() {
-    if (!API_TOKEN) throw httpError(500, "OBELISK__API__TOKEN is not set");
+    if (!API_TOKEN) throw httpError(500, "OBELISK_API_TOKEN is not set");
     return `Bearer ${API_TOKEN}`;
 }
 

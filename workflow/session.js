@@ -14,6 +14,7 @@ import * as claude from "agent-backed-llm:agent/claude";
 import * as codex from "agent-backed-llm:agent/codex";
 import * as session from "agent-backed-llm:agent/session";
 import { agentLoopCancellable } from "agent-backed-llm:session/loop";
+import * as obelisk from "obelisk:workflow@1.0.0";
 
 const STARTERS = { claude: claude.start, codex: codex.start };
 

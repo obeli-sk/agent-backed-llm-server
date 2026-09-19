@@ -163,5 +163,5 @@ env_vars = [
 pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
 methods = ["GET", "PUT"]
 request_url_regex = "^(GET ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions|PUT ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions/[^/]+/stub$)"
-secrets = ["OBELISK__API__TOKEN"]
+secrets = ["OBELISK_API_TOKEN"]
 replace_in = ["headers"]
