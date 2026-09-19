@@ -22,6 +22,7 @@
 import * as session from "agent-backed-llm:agent/session";
 import { requestSubmit, responseSubmit } from "agent-backed-llm:session-obelisk-ext/turn";
 import { responseStub } from "agent-backed-llm:session-obelisk-stub/turn";
+import * as obelisk from "obelisk:workflow@1.0.0";
 
 const RECV_TIMEOUT_MS = 30000;
 const IDLE_TIMEOUT = { minutes: 30 };   // persistent sleep: reclaim an abandoned session

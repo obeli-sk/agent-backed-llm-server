@@ -46,7 +46,7 @@ claude        # authenticate once (OAuth) -> ~/.claude ; or `codex login` -> ~/.
 # The API port requires a bearer token since 0.40.0. This one value is read by the
 # server and presented by the chat webhook on its API calls. `direnv` users get it
 # from .envrc-example; otherwise export it before `just serve`:
-export OBELISK__API__TOKEN=$(obelisk generate token --json | jq -r .token)
+export OBELISK_API_TOKEN=$(obelisk generate token --json | jq -r .token)
 
 just serve    # obelisk server run --server-config server.toml -d deployment.toml
 ```
