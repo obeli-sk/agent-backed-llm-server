@@ -5,10 +5,13 @@ build:
   docker build -t {{image}} agent-server
 
 verify:
-  obelisk server verify --server-config server.toml -d deployment.toml
+  obelisk server verify - server.toml -d deployment.toml
+
+fix:
+  obelisk server verify --fix -s server.toml -d deployment.toml
 
 serve:
-  obelisk server run --server-config server.toml -d deployment.toml
+  obelisk server run -s server.toml -d deployment.toml
 
 # Send one prompt to the running endpoint and print the reply.
 #   just chat "Say hi in one word."          # claude backend
