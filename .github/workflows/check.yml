@@ -69,4 +69,6 @@ jobs:
         run: nix develop --command echo
 
       - name: obelisk server verify
-        run: nix develop --command obelisk server verify --server-config server.toml -d deployment.toml --allow-unavailable-runtime-config
+        env:
+          OBELISK_API_TOKEN: ci-placeholder
+        run: nix develop --command obelisk server verify --server-config server.toml --app-config app.toml -d deployment.toml

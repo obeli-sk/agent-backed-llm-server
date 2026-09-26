@@ -48,8 +48,14 @@ claude        # authenticate once (OAuth) -> ~/.claude ; or `codex login` -> ~/.
 # from .envrc-example; otherwise export it before `just serve`:
 export OBELISK_API_TOKEN=$(obelisk generate token --json | jq -r .token)
 
-just serve    # obelisk server run --server-config server.toml -d deployment.toml
+just serve    # obelisk server run -s server.toml -a app.toml -d deployment.toml
 ```
+
+`server.toml` is the platform config (ports, database, webhook timeout, exec gate),
+`app.toml` the app policy (`app_name`, public env, secrets, outbound HTTP, reviewed
+exec digests), and `deployment.toml` the components. After editing an exec
+activity, `just fix` appends its new digest in `app.toml` next to the old one:
+drop the old digest and copy the new one into the `server.toml` exec gate.
 
 ## Test
 

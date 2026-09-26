@@ -116,7 +116,7 @@ return_type = "result<string, string>"
 
 # --- Session workflow ---------------------------------------------------------
 # workflow.session owns the container and drives the turn loop through the
-# cancellable child below; digests are refilled by `just sync` after an edit.
+# cancellable child below.
 
 [[workflow_js]]
 ffqn = "agent-backed-llm:session/workflow.session"
