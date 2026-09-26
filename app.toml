@@ -1,0 +1,33 @@
+app_name = "agent-backed-llm-server"
+
+# Variables with a `${X:-default}` fallback in deployment.toml are optional.
+[public_env]
+AGENT_CODEX_EXTRA_ARGS = { optional = true }
+AGENT_CODEX_MODEL = { optional = true }
+AGENT_EXTRA_ARGS = { optional = true }
+AGENT_HOST_CLAUDE_DIR = { optional = true }
+AGENT_HOST_CODEX_DIR = { optional = true }
+AGENT_IMAGE = { optional = true }
+AGENT_MAX_TURNS = { optional = true }
+AGENT_MODEL = { optional = true }
+HOME = {}
+OBELISK_API_URL = { optional = true }
+OBELISK_API_URL_REGEX = { optional = true }
+PATH = {}
+
+[allowed_exec_activities]
+"claude.start" = "sha256:2b671b8ea2df9bca60a6b7c1a2d426ef0f0d1d5971c9fb70dce9f6892f121249"
+"codex.start" = "sha256:2b671b8ea2df9bca60a6b7c1a2d426ef0f0d1d5971c9fb70dce9f6892f121249"
+"session.send" = "sha256:8faf6e4f53946e7fdf0781b2236569fddeca9e8c351017cc4c0fe08895cc4361"
+"session.recv" = "sha256:b6d53be597412ba756f4a7de3267fededc541ae132e91e635373f8904e9e47d9"
+"session.cleanup" = "sha256:b97aebaba5c5d1d4ffb458d53b89b2215d249328adf120e063f3c856b8e70101"
+
+[secrets]
+OBELISK_API_TOKEN = {}
+
+[[outbound_http.allowed_host]]
+pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
+methods = ["GET", "PUT"]
+request_url_regex = "^(GET ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions|PUT ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions/[^/]+/stub$)"
+secrets = ["OBELISK_API_TOKEN"]
+replace_in = ["headers"]

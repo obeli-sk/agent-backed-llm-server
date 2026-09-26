@@ -189,7 +189,8 @@ workflow/session.js      starts the container, then awaits the cancellable child
 workflow/agent-loop.js   the per-conversation turn loop (the stub pair, above), loop.agent-loop-cancellable
 webhook/chat.js      POST /v1/chat/completions (pairing + delta + reply)
 deployment.toml      FFQNs, the stub pair, and the webhook allow-list
-server.toml          moves the API/webui/external ports off the defaults (two instances)
+server.toml          platform: ports off the defaults (two instances), webhook timeout, exec gate
+app.toml             app policy: app_name, public env, API token secret, outbound HTTP, exec digests
 ```
 
 `server.js`, `entrypoint.sh`, and the four exec activities are carried over from

@@ -6,35 +6,14 @@ webui.listening_addr = "127.0.0.1:8180"     # Web UI
 external.listening_addr = "127.0.0.1:9190"  # external HTTP server; serves POST /v1/chat/completions
 database.sqlite.directory = "${DATA_DIR}/obelisk-sqlite-agent-backed-llm-server"
 
-[public_env]
-allowed = [
-  "AGENT_CODEX_EXTRA_ARGS",
-  "AGENT_CODEX_MODEL",
-  "AGENT_EXTRA_ARGS",
-  "AGENT_HOST_CLAUDE_DIR",
-  "AGENT_HOST_CODEX_DIR",
-  "AGENT_IMAGE",
-  "AGENT_MAX_TURNS",
-  "AGENT_MODEL",
-  "HOME",
-  "OBELISK_API_URL",
-  "OBELISK_API_URL_REGEX",
-  "PATH",
-]
+# The chat webhook blocks until the LLM turn finishes; match scripts/chat.sh's 600 s client timeout.
+[webhooks]
+request_timeout.seconds = 600
 
+# Platform exec gate: the same reviewed digests as app.toml.
 [allowed_exec_activities]
-"claude.start" = "sha256:73ff0d2acf3f1130c91760452dbd3a6fd8d84f094ac32e15586c60b314d873f2"
-"codex.start" = "sha256:73ff0d2acf3f1130c91760452dbd3a6fd8d84f094ac32e15586c60b314d873f2"
-"session.send" = "sha256:536a62d943260b22abcd501467cc819534b18a9cc930e238f0103afdc3e5bac4"
-"session.recv" = "sha256:b1a0cb695e54841f4c3cbe1c2ed28f944c0321a0ee9bf6e552a8360fa74fba86"
-"session.cleanup" = "sha256:29350a3896ee19e9cf005669bfd2e60d6483f7178d33142a2689c8d5480dc2d6"
-
-[secrets.OBELISK_API_TOKEN]
-env = "OBELISK_API_TOKEN"
-
-[[outbound_http.allowed_host]]
-pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
-methods = ["GET", "PUT"]
-request_url_regex = "^(GET ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions|PUT ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions/[^/]+/stub$)"
-secrets = ["OBELISK_API_TOKEN"]
-replace_in = ["headers"]
+"claude.start" = "sha256:2b671b8ea2df9bca60a6b7c1a2d426ef0f0d1d5971c9fb70dce9f6892f121249"
+"codex.start" = "sha256:2b671b8ea2df9bca60a6b7c1a2d426ef0f0d1d5971c9fb70dce9f6892f121249"
+"session.send" = "sha256:8faf6e4f53946e7fdf0781b2236569fddeca9e8c351017cc4c0fe08895cc4361"
+"session.recv" = "sha256:b6d53be597412ba756f4a7de3267fededc541ae132e91e635373f8904e9e47d9"
+"session.cleanup" = "sha256:b97aebaba5c5d1d4ffb458d53b89b2215d249328adf120e063f3c856b8e70101"
