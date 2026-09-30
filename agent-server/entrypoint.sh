@@ -41,24 +41,6 @@ else
   export CLAUDE_CONFIG_DIR="$CONFIG_DIR"
 fi
 
-# Inline the Obelisk llms.txt into the system prompt so the model has a
-# concrete reference without spending a tool call on it. The fetch failing
-# leaves the static prompt as-is (functional, just less Obelisk-aware).
-PROMPT_BASE="${AGENT_SYSTEM_PROMPT_PATH:?system prompt path is required}"
-PROMPT_OUT=/tmp/system-prompt.md
-LLMS_URL="${AGENT_LLMS_TXT_URL:-https://obeli.sk/docs/latest/llms.txt}"
-cp "$PROMPT_BASE" "$PROMPT_OUT"
-if curl -fsSL --max-time 5 "$LLMS_URL" -o /tmp/llms.txt; then
-  {
-    printf '\n# Obelisk reference (from %s)\n' "$LLMS_URL"
-    cat /tmp/llms.txt
-  } >> "$PROMPT_OUT"
-  echo "[entrypoint] appended $(wc -c < /tmp/llms.txt)B of $LLMS_URL to system prompt" >&2
-else
-  echo "[entrypoint] llms.txt fetch failed; continuing with static prompt" >&2
-fi
-export AGENT_SYSTEM_PROMPT_PATH="$PROMPT_OUT"
-
 mkdir -p "${AGENT_WORKDIR:-/tmp/work}"
 cd "${AGENT_WORKDIR:-/tmp/work}"
 
