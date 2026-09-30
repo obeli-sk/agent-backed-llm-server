@@ -26,6 +26,11 @@ The frontend can point `LLM_BASE_URL` at this app **or** straight at OpenRouter 
 OpenAI / vLLM / Ollama. This app only exists so a Claude/Codex *subscription* (no
 API key) can be spoken to over the same standard wire.
 
+The gateway passes the client's system message to the CLI, alongside its tool
+calling instructions. It does not add application-specific documentation.
+For example, `workflow-agent` includes the Obelisk docs index in its own system
+message; other clients can supply instructions for their own domain.
+
 See [DESIGN.md](DESIGN.md) for how the stateless wire is bridged onto a stateful,
 durable CLI session (the stub pair, header-less pairing, idle teardown, tool calls).
 

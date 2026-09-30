@@ -172,9 +172,10 @@ The frontend sends its tools as standard OpenAI `tools`; the model returns
 standard `tool_calls`; a final answer is an assistant message with no
 `tool_calls`. The webhook renders `tools[]` into the CLI's system prompt as the
 `{"tool_calls":[...]}` / `{"final":...}` envelope instructions when it starts the
-session, and the container's `server.js` parses that envelope back into
-`tool_calls` on the way out. So the wire stays plain Chat Completions while the
-CLI keeps running its own inner FS/shell loop.
+session. The rest of the system prompt comes from the client; the gateway does
+not fetch or add Obelisk documentation. The container's `server.js` parses that
+envelope back into `tool_calls` on the way out. So the wire stays plain Chat
+Completions while the CLI keeps running its own inner FS/shell loop.
 
 ## Layout
 
