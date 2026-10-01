@@ -303,7 +303,7 @@ async function findRequest(filter, match) {
 // The turn.request created params are [response-id, expected-prefix-hash].
 async function readParams(id) {
     let payload;
-    try { payload = await apiGetJson(`GET /v1/executions/${enc(id)}/events?version_from=0&including_cursor=true&length=1`); }
+    try { payload = await apiGetJson(`GET /v1/executions/${enc(id)}/events?version=0&including_cursor=true&length=1`); }
     catch (_) { return null; }
     const p = payload.events?.[0]?.event?.created?.params;
     if (!Array.isArray(p) || p.length < 2) return null;

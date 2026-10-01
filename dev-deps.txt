@@ -1,2 +1,2 @@
-obelisk 0.42.0-rc.8
+obelisk 0.42.0-rc.9
 node.js v22.23.3
