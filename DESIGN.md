@@ -27,7 +27,7 @@ either side can drive it by id:
 
 - an **external party (including this webhook)** can *inject* its result
   (`PUT /v1/executions/<id>/stub`) and *await* it
-  (`GET /v1/executions/<id>?follow=true`, block-and-stream);
+  (`GET /v1/executions/<id>?follow=true`, a `text/event-stream` response);
 - the **owning workflow** can *await* it, *inject* a result via the
   `stub-execution` REST activity, or *cancel* it. It can also race the await
   against a persistent sleep, which is how a session cleans itself up when the
@@ -44,7 +44,7 @@ A turn uses two stubs playing opposite roles:
   paired reply id.
 - **`turn.response`** — outbound. The workflow submits it, then self-fulfils it
   via the `stub-execution` REST call once `recv` produces the reply. The webhook
-  reads it with `GET /v1/executions/<id>?follow=true` (block-and-stream).
+  reads it with the blocking `obelisk.get(respId)`.
 
 There is no in-band teardown arm: the frontend stops a session by cancelling the
 loop child (see [Idle and teardown](#idle-and-teardown)).
