@@ -44,6 +44,7 @@ external HTTP server (which serves `/v1/chat/completions`) `9190`.
 
 ```sh
 just build    # build docker.io/getobelisk/agent-backed-llm-server:latest
+just rebuild  # refresh the base image and reinstall both CLIs without build cache
 
 claude        # authenticate once (OAuth) -> ~/.claude ; or `codex login` -> ~/.codex
               # AGENT_HOST_CLAUDE_DIR / AGENT_HOST_CODEX_DIR select what gets mounted
