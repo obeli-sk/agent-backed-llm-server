@@ -96,7 +96,8 @@ Discovery lists CLI-supported models; it does not guarantee account entitlement
 for every inference request. Unsupported models still produce typed errors.
 Rebuild the image with `just build` before using discovery for the first time.
 
-To populate the frontend's `AGENT_MODELS` without a hand-maintained local list:
+`workflow-agent` and `demo-agent` use this endpoint automatically when available.
+To generate an explicit fallback `AGENT_MODELS` catalog for a client:
 
 ```sh
 export AGENT_MODELS=$(curl -fsS http://127.0.0.1:9190/v1/models | jq '[.data[] |
