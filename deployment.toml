@@ -143,7 +143,7 @@ params = [
 return_type = "result<string, variant { permanent-rate-limited(record { retry-after-seconds: u32, message: string }), permanent-malformed-reply(string), permanent-agent-exited(string), permanent-error(string), transient-error(string), permanent-start-failed(string), permanent-cleanup-failed(string), execution-failed }>"
 location = "workflow/agent-loop.js"
 
-# --- Chat-completions webhook -------------------------------------------------
+# --- Model discovery ---------------------------------------------------------
 
 [[activity_exec]]
 ffqn = "agent-backed-llm:models/claude.discover-models"
@@ -201,6 +201,8 @@ methods = ["GET"]
 request_url_regex = "^GET ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions"
 secrets = ["OBELISK_API_TOKEN"]
 replace_in = ["headers"]
+
+# --- Chat-completions webhook -------------------------------------------------
 
 [[webhook_endpoint_js]]
 name = "chat-completions"
