@@ -145,6 +145,63 @@ location = "workflow/agent-loop.js"
 
 # --- Chat-completions webhook -------------------------------------------------
 
+[[activity_exec]]
+ffqn = "agent-backed-llm:models/claude.discover-models"
+params = []
+return_type = "result<string, string>"
+location = "activity/discover-models.js"
+exec.lock_expiry.seconds = 90
+max_retries = 0
+max_output_bytes = 1048576
+env_vars = [
+  "PATH", "HOME",
+  { key = "AGENT_BACKEND", value = "claude" },
+  { key = "AGENT_IMAGE", value = "${AGENT_IMAGE:-docker.io/getobelisk/agent-backed-llm-server:latest}" },
+  { key = "AGENT_MODEL", value = "${AGENT_MODEL:-claude-opus-4-7}" },
+  { key = "AGENT_EXTRA_ARGS", value = "${AGENT_EXTRA_ARGS:-}" },
+  { key = "AGENT_HOST_CLAUDE_DIR", value = "${AGENT_HOST_CLAUDE_DIR:-${HOME}/.claude}" },
+]
+
+[[activity_exec]]
+ffqn = "agent-backed-llm:models/codex.discover-models"
+params = []
+return_type = "result<string, string>"
+location = "activity/discover-models.js"
+exec.lock_expiry.seconds = 90
+max_retries = 0
+max_output_bytes = 1048576
+env_vars = [
+  "PATH", "HOME",
+  { key = "AGENT_BACKEND", value = "codex" },
+  { key = "AGENT_IMAGE", value = "${AGENT_IMAGE:-docker.io/getobelisk/agent-backed-llm-server:latest}" },
+  { key = "AGENT_MODEL", value = "${AGENT_CODEX_MODEL:-gpt-5.5}" },
+  { key = "AGENT_EXTRA_ARGS", value = "${AGENT_CODEX_EXTRA_ARGS:-}" },
+  { key = "AGENT_HOST_CODEX_DIR", value = "${AGENT_HOST_CODEX_DIR:-${HOME}/.codex}" },
+]
+
+[[workflow_js]]
+ffqn = "agent-backed-llm:models/workflow.refresh-model-inventory"
+params = []
+return_type = "result<string, string>"
+location = "workflow/refresh-model-inventory.js"
+
+[[cron]]
+name = "refresh-model-inventory"
+ffqn = "agent-backed-llm:models/workflow.refresh-model-inventory"
+schedule = "@hourly"
+
+[[webhook_endpoint_js]]
+name = "models"
+location = "webhook/models.js"
+routes = [{ methods = ["GET"], route = "/v1/models" }]
+env_vars = [{ key = "OBELISK_API_URL", value = "${OBELISK_API_URL:-http://127.0.0.1:5105}" }]
+[[webhook_endpoint_js.allowed_host]]
+pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
+methods = ["GET"]
+request_url_regex = "^GET ${OBELISK_API_URL_REGEX:-http://127\\.0\\.0\\.1:5105}/v1/executions"
+secrets = ["OBELISK_API_TOKEN"]
+replace_in = ["headers"]
+
 [[webhook_endpoint_js]]
 name = "chat-completions"
 location = "webhook/chat.js"
