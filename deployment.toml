@@ -112,7 +112,7 @@ return_type = "result<string, string>"
 name = "turn_response"
 ffqn = "agent-backed-llm:session/turn.response"
 params = []
-return_type = "result<string, string>"
+return_type = "result<string, variant { permanent-rate-limited(record { retry-after-seconds: u32, message: string }), permanent-malformed-reply(string), permanent-agent-exited(string), permanent-error(string), transient-error(string), permanent-start-failed(string), permanent-cleanup-failed(string), execution-failed }>"
 
 # --- Session workflow ---------------------------------------------------------
 # workflow.session owns the container and drives the turn loop through the
@@ -126,7 +126,7 @@ params = [
   { name = "max-turns",     type = "u32" },
   { name = "model",         type = "string" },
 ]
-return_type = "result<string, string>"
+return_type = "result<string, variant { permanent-rate-limited(record { retry-after-seconds: u32, message: string }), permanent-malformed-reply(string), permanent-agent-exited(string), permanent-error(string), transient-error(string), permanent-start-failed(string), permanent-cleanup-failed(string), execution-failed }>"
 location = "workflow/session.js"
 
 # The turn loop, split out so the frontend can stop it with the cancel RPC. The
@@ -140,7 +140,7 @@ params = [
   { name = "system-prompt", type = "string" },
   { name = "max-turns",     type = "u32" },
 ]
-return_type = "result<string, string>"
+return_type = "result<string, variant { permanent-rate-limited(record { retry-after-seconds: u32, message: string }), permanent-malformed-reply(string), permanent-agent-exited(string), permanent-error(string), transient-error(string), permanent-start-failed(string), permanent-cleanup-failed(string), execution-failed }>"
 location = "workflow/agent-loop.js"
 
 # --- Chat-completions webhook -------------------------------------------------

@@ -23,6 +23,7 @@ import * as session from "agent-backed-llm:agent/session";
 import { requestSubmit, responseSubmit } from "agent-backed-llm:session-obelisk-ext/turn";
 import { responseStub } from "agent-backed-llm:session-obelisk-stub/turn";
 import * as obelisk from "obelisk:workflow@1.0.0";
+import { typedError } from "../errors.js";
 
 const RECV_TIMEOUT_MS = 30000;
 const IDLE_TIMEOUT = { minutes: 30 };   // persistent sleep: reclaim an abandoned session
@@ -32,6 +33,11 @@ const MAX_CORRECTIONS = 3;
 // maxTurns comes from the webhook (which reads AGENT_MAX_TURNS); workflows can't
 // read env, so it arrives as a scheduled param. It bounds a session's lifetime.
 export default function agentLoopCancellable(socketPath, systemPrompt, maxTurns) {
+    try { return runLoop(socketPath, systemPrompt, maxTurns); }
+    catch (error) { throw typedError(error); }
+}
+
+function runLoop(socketPath, systemPrompt, maxTurns) {
     if (typeof socketPath !== "string" || !socketPath) throw "socket is required";
     if (typeof systemPrompt !== "string") throw "system-prompt is required";
     const turnCap = Number.isInteger(maxTurns) && maxTurns > 0 ? maxTurns : DEFAULT_MAX_TURNS;
@@ -41,9 +47,6 @@ export default function agentLoopCancellable(socketPath, systemPrompt, maxTurns)
         const next = awaitTurn(committed, turn);
         if (next === null) return "session idle; cleaned up";
 
-        const input = parseInput(next.delta);
-        committed = rollHash(committed, canonicalInput(input));
-
         // Invariant: respId lives in next.respSet, a join set owned by THIS
         // cancellable child. On a frontend cancel mid-turn none of the handlers
         // below run (a cancelled workflow is not advanced again) -- the webhook's
@@ -52,13 +55,16 @@ export default function agentLoopCancellable(socketPath, systemPrompt, maxTurns)
         // stub. Do not move respId to a parent-owned or -scheduled join set: that
         // would leave the webhook hanging forever on a cancel.
         try {
+            const input = parseInput(next.delta);
+            committed = rollHash(committed, canonicalInput(input));
             const reply = sendAndDrain(socketPath, input);
             responseStub(next.respId, { ok: JSON.stringify(reply) });
             committed = rollHash(committed, canonicalReply(reply));
             console.log(`--- turn ${turn} done (${replyKind(reply)}) ---`);
         } catch (error) {
-            try { responseStub(next.respId, { err: String(error) }); } catch (_) {}
-            throw error;
+            const failure = typedError(error);
+            try { responseStub(next.respId, { err: failure }); } catch (_) {}
+            throw failure;
         } finally {
             next.respSet.close();
         }
@@ -81,7 +87,7 @@ function awaitTurn(committed, turn) {
         const delta = raceSet.joinNext();
         if (raceSet.lastId == delayId) {
             // Drop the unanswered response stub.
-            responseStub(respId, { err: "session idle timeout" });
+            responseStub(respId, { err: { permanent_error: "session idle timeout" } });
             respSet.close();
             return null;
         }

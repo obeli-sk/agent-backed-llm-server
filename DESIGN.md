@@ -53,6 +53,20 @@ loop child (see [Idle and teardown](#idle-and-teardown)).
 package agent-backed-llm:session;
 
 interface turn {
+  record rate-limit {
+    retry-after-seconds: u32,
+    message: string,
+  }
+  variant session-error {
+    permanent-rate-limited(rate-limit),
+    permanent-malformed-reply(string),
+    permanent-agent-exited(string),
+    permanent-error(string),
+    transient-error(string),
+    permanent-start-failed(string),
+    permanent-cleanup-failed(string),
+    execution-failed,
+  }
   // INBOUND: workflow submits(response-id, expected-prefix-hash) & awaits;
   // webhook injects the result by execution id.
   //   ok = JSON: messages appended since the last assistant reply (the delta)
@@ -62,7 +76,7 @@ interface turn {
   // OUTBOUND: workflow submits, then self-fulfils; webhook follows the result.
   //   ok  = JSON of the OpenAI assistant message { content?, tool_calls? }
   //   err = structured failure (rate_limited{retry_after}, exited, ...)
-  response: func() -> result<string, string>;
+  response: func() -> result<string, session-error>;
 }
 ```
 
@@ -80,8 +94,13 @@ return_type = "result<string, string>"
 [[activity_stub]]
 ffqn = "agent-backed-llm:session/turn.response"
 params = []
-return_type = "result<string, string>"
+return_type = "result<string, variant { permanent-rate-limited(record { retry-after-seconds: u32, message: string }), permanent-malformed-reply(string), permanent-agent-exited(string), permanent-error(string), transient-error(string), permanent-start-failed(string), permanent-cleanup-failed(string), execution-failed }>"
 ```
+
+The turn response and both workflows preserve these error variants. Startup and
+cleanup string errors are mapped to their respective variants; cleanup still
+runs after a turn failure, and its error does not replace the original failure.
+The HTTP webhook formats the payload into an OpenAI-compatible error message.
 
 ## The turn handshake
 

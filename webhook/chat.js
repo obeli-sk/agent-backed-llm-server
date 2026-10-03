@@ -10,6 +10,7 @@
 
 import * as obelisk from "obelisk:webhook@1.0.0";
 import * as dynamic from "obelisk:webhook-dynamic@1.0.0";
+import { errorMessage } from "../errors.js";
 
 const WORKFLOW_FFQN = "agent-backed-llm:session/workflow.session";
 const TURN_REQUEST_FFQN = "agent-backed-llm:session/turn.request";
@@ -113,7 +114,7 @@ function getReply(respId) {
         // rather than an application err. Report that as a distinct "stopped"
         // status so a caller can tell an intentional stop from a backend fault.
         if (wasStopped(respId)) throw httpError(409, "session was stopped before it produced a reply");
-        throw httpError(502, `session ended without a reply: ${String(e)}`);
+        throw httpError(502, `session ended without a reply: ${errorMessage(e)}`);
     }
     try { return JSON.parse(raw); }
     catch (e) { throw httpError(502, `reply was not valid JSON: ${String(e)}`); }
