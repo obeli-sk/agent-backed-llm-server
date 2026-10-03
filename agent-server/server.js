@@ -452,11 +452,11 @@ function makeCodexBackend() {
       const args = ["exec"];
       if (threadId) args.push("resume", threadId);
       args.push("--json", "--skip-git-repo-check");
+      if (MODEL) args.push("-m", MODEL);
       if (!threadId) {
         // First turn: open the sandbox/approvals so codex can run its tools
         // unattended (the container is the real sandbox). resume inherits this.
         args.push("--dangerously-bypass-approvals-and-sandbox");
-        if (MODEL) args.push("-m", MODEL);
         if (EXTRA) args.push(...EXTRA.split(/\s+/));
       }
       args.push("-"); // read the prompt from stdin (avoids argv length limits)

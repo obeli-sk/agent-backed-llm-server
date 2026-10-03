@@ -44,4 +44,8 @@ fi
 mkdir -p "${AGENT_WORKDIR:-/tmp/work}"
 cd "${AGENT_WORKDIR:-/tmp/work}"
 
+if [ "$SOCKET_PATH" = "discover-models" ]; then
+  exec node /app/discover-models.js
+fi
+
 exec node /app/server.js "$SOCKET_PATH"

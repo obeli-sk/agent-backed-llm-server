@@ -21,6 +21,8 @@ PATH = {}
 "session.send" = "sha256:8faf6e4f53946e7fdf0781b2236569fddeca9e8c351017cc4c0fe08895cc4361"
 "session.recv" = "sha256:b6d53be597412ba756f4a7de3267fededc541ae132e91e635373f8904e9e47d9"
 "session.cleanup" = "sha256:b97aebaba5c5d1d4ffb458d53b89b2215d249328adf120e063f3c856b8e70101"
+"claude.discover-models" = "sha256:eeaa02ba60b243094f8038a069b2eb3315430b9f25c7e4e03aaa08ccb50f9fb1"
+"codex.discover-models" = "sha256:eeaa02ba60b243094f8038a069b2eb3315430b9f25c7e4e03aaa08ccb50f9fb1"
 
 [secrets]
 OBELISK_API_TOKEN = {}

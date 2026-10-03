@@ -15,14 +15,15 @@ import * as codex from "agent-backed-llm:agent/codex";
 import * as session from "agent-backed-llm:agent/session";
 import { agentLoopCancellable } from "agent-backed-llm:session/loop";
 import * as obelisk from "obelisk:workflow@1.0.0";
+import { typedError } from "../errors.js";
 
 const STARTERS = { claude: claude.start, codex: codex.start };
 
 export default function sessionWorkflow(backend, systemPrompt, maxTurns, model) {
     const which = (typeof backend === "string" && backend) ? backend : "claude";
     const start = STARTERS[which];
-    if (!start) throw `unknown backend: ${which} (expected claude or codex)`;
-    if (typeof systemPrompt !== "string") throw "system-prompt is required";
+    if (!start) throw { permanent_error: `unknown backend: ${which} (expected claude or codex)` };
+    if (typeof systemPrompt !== "string") throw { permanent_error: "system-prompt is required" };
     const cliModel = typeof model === "string" ? model : "";
 
     const executionId = obelisk.executionIdCurrent();
@@ -32,19 +33,21 @@ export default function sessionWorkflow(backend, systemPrompt, maxTurns, model) 
 
     let workflowError = null;
     let outcome = "session ended";
+    let failureCase = "permanent_start_failed";
     try {
         const startInfo = start(containerName, socketPath, systemPrompt, cliModel);
         console.log(`Started ${which} agent ${startInfo.container} from ${startInfo.image}`);
+        failureCase = "permanent_error";
         outcome = agentLoopCancellable(socketPath, systemPrompt, maxTurns);
     } catch (error) {
-        workflowError = error;
+        workflowError = typedError(error, failureCase);
     } finally {
         try {
             session.cleanup(containerName, socketPath);
             console.log(`Cleaned up ${containerName}`);
         } catch (error) {
             console.log(`Cleanup failed for ${containerName}: ${String(error)}`);
-            if (workflowError === null) workflowError = error;
+            if (workflowError === null) workflowError = typedError(error, "permanent_cleanup_failed");
         }
     }
     if (workflowError !== null) throw workflowError;

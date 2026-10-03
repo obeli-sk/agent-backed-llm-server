@@ -44,6 +44,7 @@ external HTTP server (which serves `/v1/chat/completions`) `9190`.
 
 ```sh
 just build    # build docker.io/getobelisk/agent-backed-llm-server:latest
+just rebuild  # refresh the base image and reinstall both CLIs without build cache
 
 claude        # authenticate once (OAuth) -> ~/.claude ; or `codex login` -> ~/.codex
               # AGENT_HOST_CLAUDE_DIR / AGENT_HOST_CODEX_DIR select what gets mounted
@@ -53,7 +54,7 @@ claude        # authenticate once (OAuth) -> ~/.claude ; or `codex login` -> ~/.
 # from .envrc-example; otherwise export it before `just serve`:
 export OBELISK_API_TOKEN=$(obelisk generate token --json | jq -r .token)
 
-just serve    # obelisk server run -s server.toml -a app.toml -d deployment.toml
+just serve    # start Obelisk, wait for its API, then submit model discovery
 ```
 
 `server.toml` is the platform config (ports, database, webhook timeout, exec gate),
@@ -61,6 +62,53 @@ just serve    # obelisk server run -s server.toml -a app.toml -d deployment.toml
 exec digests), and `deployment.toml` the components. After editing an exec
 activity, `just fix` appends its new digest in `app.toml` next to the old one:
 drop the old digest and copy the new one into the `server.toml` exec gate.
+
+## Model inventory
+
+`just serve` runs `scripts/serve.sh`, which submits
+`agent-backed-llm:models/workflow.refresh-model-inventory` after the authenticated
+API is ready. Each refresh probes Claude and Codex concurrently in short-lived
+containers using the same image, auth mounts, default model, and extra arguments
+as real sessions. Claude's initialization control response and Codex's
+`model/list` supply the catalogs; no inference prompt is sent.
+
+The launch script uses `OBELISK_API_URL` (default `http://127.0.0.1:5105`) and
+`OBELISK_API_TOKEN` (default the repository folder name). It forwards termination
+to Obelisk and waits up to `MODEL_DISCOVERY_STARTUP_TIMEOUT_SECONDS` (default 90)
+for API readiness. Starting `obelisk server run` directly bypasses the startup
+refresh. An hourly cron refresh runs independently and survives restarts.
+
+```sh
+just refresh-models                        # submit a refresh manually
+curl -fsS http://127.0.0.1:9190/v1/models    # read the persisted inventory
+```
+
+`GET /v1/models` returns an OpenAI-shaped list with explicit wire IDs such as
+`codex/<discovered-model>` and `claude/<discovered-model>`. Each entry includes its
+display name, CLI capabilities, and discovery timestamp. The `backends` metadata
+reports `ready`, `stale`, `unavailable`, or `pending`, the last attempt, and any
+failure. A failed refresh preserves the last successful catalog for that
+backend. With no successful discovery it returns HTTP 503; a partial inventory
+returns HTTP 200. Results live in Obelisk's execution history, so normal execution
+retention also controls how long cached catalogs survive.
+
+Discovery lists CLI-supported models; it does not guarantee account entitlement
+for every inference request. Unsupported models still produce typed errors.
+Rebuild the image with `just build` before using discovery for the first time.
+
+`workflow-agent` and `demo-agent` use this endpoint automatically when available.
+To generate an explicit fallback `AGENT_MODELS` catalog for a client:
+
+```sh
+export AGENT_MODELS=$(curl -fsS http://127.0.0.1:9190/v1/models | jq '[.data[] |
+  {id, label: .display_name, api_type: "openai-chat-completions", wire_model: .id}]')
+```
+
+Run the protocol, workflow, and launcher regression tests in the dev shell:
+
+```sh
+nix develop -c node --experimental-vm-modules --test agent-server/*.test.js workflow/*.test.cjs scripts/*.test.cjs
+```
 
 ## Test
 
