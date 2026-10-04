@@ -125,6 +125,7 @@ params = [
   { name = "system-prompt", type = "string" },
   { name = "max-turns",     type = "u32" },
   { name = "model",         type = "string" },
+  { name = "recovery",      type = "option<string>" },
 ]
 return_type = "result<string, variant { permanent-rate-limited(record { retry-after-seconds: u32, message: string }), permanent-malformed-reply(string), permanent-agent-exited(string), permanent-error(string), transient-error(string), permanent-start-failed(string), permanent-cleanup-failed(string), execution-failed }>"
 location = "workflow/session.js"
@@ -139,6 +140,7 @@ params = [
   { name = "socket",        type = "string" },
   { name = "system-prompt", type = "string" },
   { name = "max-turns",     type = "u32" },
+  { name = "recovery",      type = "option<string>" },
 ]
 return_type = "result<string, variant { permanent-rate-limited(record { retry-after-seconds: u32, message: string }), permanent-malformed-reply(string), permanent-agent-exited(string), permanent-error(string), transient-error(string), permanent-start-failed(string), permanent-cleanup-failed(string), execution-failed }>"
 location = "workflow/agent-loop.js"
