@@ -55,8 +55,17 @@ export default async function handle(request) {
         try {
             reply = getReply(turn.respId);   // { final } | { tool_calls }
         } catch (error) {
-            error.workflowExecutionId = turn.workflowExecutionId;
-            throw error;
+            if (error.expiredSession && lastAssistant !== -1 && !turn.recovered) {
+                turn = await restoreSession(messages, systemPrompt, tools, model, lastAssistant);
+                try { reply = getReply(turn.respId); }
+                catch (restoreError) {
+                    restoreError.workflowExecutionId = turn.workflowExecutionId;
+                    throw restoreError;
+                }
+            } else {
+                error.workflowExecutionId = turn.workflowExecutionId;
+                throw error;
+            }
         }
         return jsonResponse(openaiResponse(reply, model), 200, workflowHeaders(turn.workflowExecutionId));
     } catch (e) {
@@ -68,19 +77,32 @@ export default async function handle(request) {
 // Turn 0: no assistant in the history yet. Start a new session workflow, then
 // deliver the opening user message(s) through its first turn.request.
 async function turnZero(messages, systemPrompt, tools, model) {
+    return startSession(systemPrompt, tools, model, messagesToInput(messagesAfterSystem(messages), null), null);
+}
+
+async function restoreSession(messages, systemPrompt, tools, model, lastAssistant) {
+    const workflowSystem = renderWorkflowSystemPrompt(pickBackend(model), tools, systemPrompt);
+    const recovery = JSON.stringify({
+        prefix_hash: computePrefixHash(workflowSystem, messages, lastAssistant),
+        messages,
+    });
+    const delta = messagesToInput(messages.slice(lastAssistant + 1), toolCallsOf(messages[lastAssistant]));
+    return startSession(systemPrompt, tools, model, delta, recovery);
+}
+
+async function startSession(systemPrompt, tools, model, delta, recovery) {
     const backend = pickBackend(model);
     const cliModel = pickModel(model);
     const sessionId = obelisk.executionIdGenerate();
     const workflowSystem = renderWorkflowSystemPrompt(backend, tools, systemPrompt);
-    dynamic.schedule(sessionId, WORKFLOW_FFQN, [backend, workflowSystem, MAX_TURNS, cliModel]);
+    dynamic.schedule(sessionId, WORKFLOW_FFQN, [backend, workflowSystem, MAX_TURNS, cliModel, recovery]);
 
     const req = await pollForSessionRequest(sessionId).catch((error) => {
         error.workflowExecutionId = sessionId;
         throw error;
     });
-    const delta = messagesToInput(messagesAfterSystem(messages), null);
     await injectStub(req.reqId, { ok: JSON.stringify(delta) });
-    return { respId: req.respId, workflowExecutionId: sessionId };
+    return { respId: req.respId, workflowExecutionId: sessionId, recovered: recovery !== null };
 }
 
 // Turn k>=1: pair by the committed-history hash, deliver the delta (idempotently),
@@ -95,12 +117,32 @@ async function continuation(messages, systemPrompt, tools, model, lastAssistant)
     // a finished one does, the delta was already delivered (a retry): just re-read.
     const pending = await findRequestByHash(prefixHash, true);
     if (pending) {
-        await injectStub(pending.reqId, { ok: JSON.stringify(delta) });
+        try { await injectStub(pending.reqId, { ok: JSON.stringify(delta) }); }
+        catch (error) {
+            // Idle cleanup can win between the lookup and delivery.
+            try { getReply(pending.respId); }
+            catch (replyError) {
+                if (replyError.expiredSession) return restoreSession(messages, systemPrompt, tools, model, lastAssistant);
+                throw replyError;
+            }
+            throw error;
+        }
         return { respId: pending.respId, workflowExecutionId: workflowExecutionIdOf(pending.reqId) };
     }
     const finished = await findRequestByHash(prefixHash, false);
-    if (finished) return { respId: finished.respId, workflowExecutionId: workflowExecutionIdOf(finished.reqId) };
-    throw httpError(409, "no open session matches this conversation history");
+    if (finished) {
+        let delivered;
+        try { delivered = JSON.parse(obelisk.get(finished.reqId)); }
+        catch (_) {}
+        if (delivered && canonicalInput(delivered) !== canonicalInput(delta)) {
+            return restoreSession(messages, systemPrompt, tools, model, lastAssistant);
+        }
+        if (!delivered && wasStopped(finished.respId)) {
+            return restoreSession(messages, systemPrompt, tools, model, lastAssistant);
+        }
+        return { respId: finished.respId, workflowExecutionId: workflowExecutionIdOf(finished.reqId) };
+    }
+    return restoreSession(messages, systemPrompt, tools, model, lastAssistant);
 }
 
 // Block until the session's reply arrives. obelisk.get waits for the stub to be
@@ -114,7 +156,10 @@ function getReply(respId) {
         // rather than an application err. Report that as a distinct "stopped"
         // status so a caller can tell an intentional stop from a backend fault.
         if (wasStopped(respId)) throw httpError(409, "session was stopped before it produced a reply");
-        throw httpError(502, `session ended without a reply: ${errorMessage(e)}`);
+        const message = errorMessage(e);
+        const error = httpError(502, `session ended without a reply: ${message}`);
+        error.expiredSession = message === "session idle timeout";
+        throw error;
     }
     try { return JSON.parse(raw); }
     catch (e) { throw httpError(502, `reply was not valid JSON: ${String(e)}`); }
@@ -287,9 +332,7 @@ async function findRequestByHash(prefixHash, pendingOnly) {
 // List turn.request executions, read each one's created params, return the first
 // whose params satisfy `match` as { reqId, respId, expected }.
 async function findRequest(filter, match) {
-    let list;
-    try { list = await apiGetJson(`GET /v1/executions?${filter}`); }
-    catch (_) { return null; }
+    const list = await apiGetJson(`GET /v1/executions?${filter}`);
     const rows = Array.isArray(list) ? list : (list.executions || []);
     for (const row of rows) {
         const id = row.execution_id;
@@ -305,7 +348,10 @@ async function findRequest(filter, match) {
 async function readParams(id) {
     let payload;
     try { payload = await apiGetJson(`GET /v1/executions/${enc(id)}/events?version=0&including_cursor=true&length=1`); }
-    catch (_) { return null; }
+    catch (error) {
+        if (error.apiStatus === 404) return null;
+        throw error;
+    }
     const p = payload.events?.[0]?.event?.created?.params;
     if (!Array.isArray(p) || p.length < 2) return null;
     return { response_id: String(p[0]), expected: String(p[1]) };
@@ -324,7 +370,11 @@ async function apiGetJson(methodPath) {
     const path = methodPath.replace(/^GET /, "");
     const resp = await fetch(`${API_BASE}${path}`, { headers: { accept: "application/json", authorization: authHeader() } });
     const text = await resp.text();
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${text}`);
+    if (!resp.ok) {
+        const error = new Error(`HTTP ${resp.status}: ${text}`);
+        error.apiStatus = resp.status;
+        throw error;
+    }
     return JSON.parse(text);
 }
 

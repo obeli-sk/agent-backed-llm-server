@@ -31,6 +31,11 @@ calling instructions. It does not add application-specific documentation.
 For example, `workflow-agent` includes the Obelisk docs index in its own system
 message; other clients can supply instructions for their own domain.
 
+Idle expiry is transparent to subsequent requests: the gateway starts a fresh
+session using the full supplied conversation, preserving tool calls and results.
+Retries of deliberately stopped requests still report the stop; a later,
+different input can start a new session.
+
 See [DESIGN.md](DESIGN.md) for how the stateless wire is bridged onto a stateful,
 durable CLI session (the stub pair, header-less pairing, idle teardown, tool calls).
 

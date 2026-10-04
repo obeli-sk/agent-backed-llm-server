@@ -127,7 +127,7 @@ webhook, each request:
      find that session's pending turn.request (by FFQN + session-id prefix)
   else:
      find any turn.request whose params.expected-prefix-hash == prefix_hash
-     (NO MATCH => 409, see "mismatch")
+     if no match or idle-expired: start a session with full history and prefix_hash
   { respId } = that stub's params
   PUT /v1/executions/<reqId>/stub { ok: delta }          // deliver new messages
   reply = obelisk.get(respId)                            // block for the reply
@@ -141,7 +141,7 @@ reply with `responseStub(respId, …)`. Turn 0 differs only in how the session i
 located (by the id the webhook just scheduled, since there is no history hash to
 match yet); everything after is one code path. The webhook never creates a stub.
 
-## Pairing without a header (and "mismatch fails")
+## Pairing without a header
 
 The frontend sends no session id, so the backend keys sessions on the history
 itself. Each `turn.request` is submitted with `expected-prefix-hash` = a hash of
@@ -152,10 +152,24 @@ next turn, so the webhook pairs a request by matching
 
 - **No assistant message** in the history => turn 0 => start a new session.
 - **A match** => route the trailing messages (the delta) into that session.
-- **No match** but the history has assistant messages => the session is gone or
-  the history diverged => **fail** (`409`). We are deliberately stricter than a
-  real prefix cache: for a provider a miss just costs more, but here a miss means
-  the stateful CLI session cannot be found.
+- **No match or idle expiry** => start a new session with the complete incoming
+  conversation. The first CLI input contains ordered JSON messages preserving
+  roles, assistant text, tool call IDs and arguments, and tool results.
+- **A completed match** => replay its response only for the same delivered
+  delta. A later, different input starts a new session instead of replaying the
+  old response. Retrying a deliberately stopped request still returns `409`;
+  other backend errors retain their normal HTTP failure.
+
+Recovery passes an optional JSON string to both session workflows, containing
+the prior history hash and the full messages. The loop publishes that hash on
+its first request stub, hashes only the latest delta and newly generated reply,
+and sends the full transcript to the CLI once. Subsequent turns use ordinary
+deltas. This makes recovered sessions match the same hashes as warm sessions,
+including on HTTP retries. API lookup failures do not count as cache misses.
+
+The added workflow parameter applies to new deployments. Existing executions
+retain their original deployment signatures and can expire normally; the new
+webhook can recover from their idle-timeout responses.
 
 Two identical histories in flight at once hash-collide onto one session; the
 webhook locks a session to one in-flight turn and rejects a second concurrent

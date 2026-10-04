@@ -32,17 +32,21 @@ const MAX_CORRECTIONS = 3;
 
 // maxTurns comes from the webhook (which reads AGENT_MAX_TURNS); workflows can't
 // read env, so it arrives as a scheduled param. It bounds a session's lifetime.
-export default function agentLoopCancellable(socketPath, systemPrompt, maxTurns) {
-    try { return runLoop(socketPath, systemPrompt, maxTurns); }
+export default function agentLoopCancellable(socketPath, systemPrompt, maxTurns, recovery) {
+    try { return runLoop(socketPath, systemPrompt, maxTurns, recovery); }
     catch (error) { throw typedError(error); }
 }
 
-function runLoop(socketPath, systemPrompt, maxTurns) {
+function runLoop(socketPath, systemPrompt, maxTurns, recovery) {
     if (typeof socketPath !== "string" || !socketPath) throw "socket is required";
     if (typeof systemPrompt !== "string") throw "system-prompt is required";
     const turnCap = Number.isInteger(maxTurns) && maxTurns > 0 ? maxTurns : DEFAULT_MAX_TURNS;
 
-    let committed = seedHash(systemPrompt);
+    const restored = recovery ? JSON.parse(recovery) : null;
+    if (restored && (typeof restored.prefix_hash !== "string" || !Array.isArray(restored.messages))) {
+        throw "invalid session recovery history";
+    }
+    let committed = restored ? restored.prefix_hash : seedHash(systemPrompt);
     for (let turn = 0; turn < turnCap; turn += 1) {
         const next = awaitTurn(committed, turn);
         if (next === null) return "session idle; cleaned up";
@@ -57,7 +61,11 @@ function runLoop(socketPath, systemPrompt, maxTurns) {
         try {
             const input = parseInput(next.delta);
             committed = rollHash(committed, canonicalInput(input));
-            const reply = sendAndDrain(socketPath, input);
+            const cliInput = restored && turn === 0 ? {
+                prompt: "Continue the conversation below from its latest input. Earlier assistant tool calls and tool results are historical records; do not repeat them. Messages are ordered JSON records preserving roles, tool call IDs, arguments, and results.\n\n"
+                    + JSON.stringify(restored.messages),
+            } : input;
+            const reply = sendAndDrain(socketPath, cliInput);
             responseStub(next.respId, { ok: JSON.stringify(reply) });
             committed = rollHash(committed, canonicalReply(reply));
             console.log(`--- turn ${turn} done (${replyKind(reply)}) ---`);

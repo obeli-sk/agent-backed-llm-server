@@ -19,7 +19,7 @@ import { typedError } from "../errors.js";
 
 const STARTERS = { claude: claude.start, codex: codex.start };
 
-export default function sessionWorkflow(backend, systemPrompt, maxTurns, model) {
+export default function sessionWorkflow(backend, systemPrompt, maxTurns, model, recovery) {
     const which = (typeof backend === "string" && backend) ? backend : "claude";
     const start = STARTERS[which];
     if (!start) throw { permanent_error: `unknown backend: ${which} (expected claude or codex)` };
@@ -38,7 +38,7 @@ export default function sessionWorkflow(backend, systemPrompt, maxTurns, model) 
         const startInfo = start(containerName, socketPath, systemPrompt, cliModel);
         console.log(`Started ${which} agent ${startInfo.container} from ${startInfo.image}`);
         failureCase = "permanent_error";
-        outcome = agentLoopCancellable(socketPath, systemPrompt, maxTurns);
+        outcome = agentLoopCancellable(socketPath, systemPrompt, maxTurns, recovery ?? null);
     } catch (error) {
         workflowError = typedError(error, failureCase);
     } finally {
