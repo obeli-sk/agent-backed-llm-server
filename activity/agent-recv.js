@@ -146,7 +146,7 @@ async function main() {
     failPermanent("timeout-ms must be a non-negative number");
   }
 
-  let finalAgentMessage = "";
+  const agentMessages = [];
   while (true) {
     const response = await request(socketPath, { op: "recv", timeout_ms: timeoutMs });
     if (!response.ok) fail(response.error || "recv failed");
@@ -157,7 +157,7 @@ async function main() {
         console.error(`[raw] ${JSON.stringify(ev)}`);
         if (ev?.type === "item.completed" && ev.item?.type === "agent_message"
           && typeof ev.item.text === "string") {
-          finalAgentMessage = ev.item.text;
+          agentMessages.push(stripActionEnvelopes(ev.item.text));
         }
       }
     }
@@ -174,7 +174,7 @@ async function main() {
           reply: {
             reply: normalizeReply(response.reply),
             presentation: Array.isArray(response.reply?.tool_calls)
-              ? stripActionEnvelopes(finalAgentMessage)
+              ? agentMessages.filter(Boolean).join("\n")
               : "",
             narration: response.narration || "",
           },
