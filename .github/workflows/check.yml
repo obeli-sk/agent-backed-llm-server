@@ -68,7 +68,10 @@ jobs:
       - name: Populate the nix store
         run: nix develop --command echo
 
+      - name: obelisk deployment verify
+        run: nix develop --command obelisk deployment verify -d deployment.toml
+
       - name: obelisk server verify
         env:
           OBELISK_API_TOKEN: ci-placeholder
-        run: nix develop --command obelisk server verify --server-config server.toml --app-config app.toml -d deployment.toml
+        run: nix develop --command obelisk server verify --skip-db --server-config server.toml --app-config app.toml -d deployment.toml
