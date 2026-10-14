@@ -8,10 +8,11 @@ rebuild:
   docker build --pull --no-cache -t {{image}} agent-server
 
 verify:
-  obelisk server verify -s server.toml -a app.toml -d deployment.toml
+  obelisk deployment verify -d deployment.toml
+  obelisk server verify --skip-db -s server.toml -a app.toml -d deployment.toml
 
 fix:
-  obelisk server verify --fix -s server.toml -a app.toml -d deployment.toml
+  obelisk server verify --skip-db --fix -s server.toml -a app.toml -d deployment.toml
 
 serve:
   bash scripts/serve.sh
