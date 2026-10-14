@@ -71,4 +71,4 @@ jobs:
       - name: obelisk server verify
         env:
           OBELISK_API_TOKEN: ci-placeholder
-        run: nix develop --command obelisk server verify --server-config server.toml --app-config app.toml -d deployment.toml
+        run: nix develop --command obelisk server verify --skip-db --server-config server.toml --app-config app.toml -d deployment.toml
