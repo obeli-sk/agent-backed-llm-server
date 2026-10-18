@@ -25,7 +25,8 @@ PATH = {}
 "codex.discover-models" = "sha256:eeaa02ba60b243094f8038a069b2eb3315430b9f25c7e4e03aaa08ccb50f9fb1"
 
 [secrets]
-OBELISK_API_TOKEN = {}
+# The webhooks call this server's own API with its startup token.
+OBELISK_API_TOKEN = { type = "internal" }
 
 [[outbound_http.allowed_host]]
 pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
