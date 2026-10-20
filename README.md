@@ -54,10 +54,11 @@ just rebuild  # refresh the base image and reinstall both CLIs without build cac
 claude        # authenticate once (OAuth) -> ~/.claude ; or `codex login` -> ~/.codex
               # AGENT_HOST_CLAUDE_DIR / AGENT_HOST_CODEX_DIR select what gets mounted
 
-# The API port requires a bearer token since 0.40.0. This one value is read by the
-# server and presented by the chat webhook on its API calls. `direnv` users get it
-# from .envrc-example; otherwise export it before `just serve`:
-export OBELISK_API_TOKEN=$(obelisk generate token --json | jq -r .token)
+# The webhooks call this server's API with its startup token (an internal
+# secret in app.toml). `just serve` and `just refresh-models` still present
+# OBELISK_API_TOKEN, which the server also accepts. `direnv` users get one from
+# .envrc-example; otherwise export it before `just serve`:
+export OBELISK_API_TOKEN=$(obelisk generate token)
 
 just serve    # start Obelisk, wait for its API, then submit model discovery
 ```

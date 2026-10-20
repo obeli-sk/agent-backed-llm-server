@@ -1,3 +1,4 @@
 use flake .
 
-export OBELISK_API_TOKEN=$(obelisk generate token --json | jq -r .token)
+# Token for the launcher and `just refresh-models`; the webhooks use the startup token.
+export OBELISK_API_TOKEN=$(obelisk generate token)
