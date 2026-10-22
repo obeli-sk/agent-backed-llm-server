@@ -196,11 +196,12 @@ schedule = "@hourly"
 name = "models"
 location = "webhook/models.js"
 routes = [{ methods = ["GET"], route = "/v1/models" }]
-env_vars = [{ key = "OBELISK_API_URL", value = "${OBELISK_API_URL:-http://127.0.0.1:5105}" }]
+env_vars = ["OBELISK_API_URL"]
+# GET /v1/executions[/<id>] -> list discovery runs and read their results.
 [[webhook_endpoint_js.allowed_host]]
-pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
+url_prefix = "${OBELISK_API_URL}"
 methods = ["GET"]
-request_url_regex = "^GET https?://[^/]+/v1/executions"
+url_regex_suffix = "/v1/executions(/[^/]+)?$"
 secrets = ["OBELISK_API_TOKEN"]
 replace_in = ["headers"]
 
@@ -213,16 +214,21 @@ routes = [
   { methods = ["POST"], route = "/v1/chat/completions" },
 ]
 env_vars = [
-  { key = "OBELISK_API_URL",  value = "${OBELISK_API_URL:-http://127.0.0.1:5105}" },
+  "OBELISK_API_URL",
   { key = "AGENT_MAX_TURNS",  value = "${AGENT_MAX_TURNS:-200}" },
 ]
-# One scoped allowed_host keeps the component and operator policies aligned for both API calls.
-#   GET /v1/executions*            -> list + read created params to pair a request.
-#   PUT /v1/executions/<id>/stub   -> inject the delta into a turn.request stub.
 # Obelisk replaces the registered API token secret in the `authorization` header.
+# GET /v1/executions[/<id>/events] -> list + read created params to pair a request.
 [[webhook_endpoint_js.allowed_host]]
-pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
-methods = ["GET", "PUT"]
-request_url_regex = "^(GET https?://[^/]+/v1/executions|PUT https?://[^/]+/v1/executions/[^/]+/stub$)"
+url_prefix = "${OBELISK_API_URL}"
+methods = ["GET"]
+url_regex_suffix = "/v1/executions(/[^/]+/events)?$"
+secrets = ["OBELISK_API_TOKEN"]
+replace_in = ["headers"]
+# PUT /v1/executions/<id>/stub -> inject the delta into a turn.request stub.
+[[webhook_endpoint_js.allowed_host]]
+url_prefix = "${OBELISK_API_URL}"
+methods = ["PUT"]
+url_regex_suffix = "/v1/executions/[^/]+/stub$"
 secrets = ["OBELISK_API_TOKEN"]
 replace_in = ["headers"]

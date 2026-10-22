@@ -1,4 +1,4 @@
-const API_BASE = (process.env.OBELISK_API_URL || "http://127.0.0.1:5105").replace(/\/$/, "");
+const API_BASE = process.env.OBELISK_API_URL;
 const API_TOKEN = process.env.OBELISK_API_TOKEN;
 
 async function api(path) {

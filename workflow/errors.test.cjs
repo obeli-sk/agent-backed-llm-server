@@ -118,7 +118,7 @@ test("HTTP boundary renders the typed error message and includes the session id"
         "obelisk:webhook-dynamic@1.0.0": { schedule() {} },
     }, {
         Response,
-        process: { env: { OBELISK_API_TOKEN: "test" } },
+        process: { env: { OBELISK_API_URL: "http://127.0.0.1:5105", OBELISK_API_TOKEN: "test" } },
         fetch: async (url, options) => {
             if (options.method === "PUT") return new Response("null");
             if (url.includes("/events?")) {

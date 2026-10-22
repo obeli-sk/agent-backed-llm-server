@@ -3,8 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 export OBELISK_API_TOKEN="${OBELISK_API_TOKEN:-$(basename "$PWD")}"
-api_url="${OBELISK_API_URL:-http://127.0.0.1:5105}"
-api_url="${api_url%/}"
+api_url="http://127.0.0.1:5105" # server.toml api.listening_addr
 startup_timeout="${MODEL_DISCOVERY_STARTUP_TIMEOUT_SECONDS:-90}"
 
 server_pid=""

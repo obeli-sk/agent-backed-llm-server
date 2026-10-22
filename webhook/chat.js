@@ -15,7 +15,7 @@ import { errorMessage } from "../errors.js";
 const WORKFLOW_FFQN = "agent-backed-llm:session/workflow.session";
 const TURN_REQUEST_FFQN = "agent-backed-llm:session/turn.request";
 
-const API_BASE = (process.env["OBELISK_API_URL"] || "http://127.0.0.1:5005").replace(/\/$/, "");
+const API_BASE = process.env["OBELISK_API_URL"];
 // Opaque placeholder; Obelisk substitutes the real token into the outgoing
 // `authorization` header (see the allowed_host secrets in deployment.toml).
 const API_TOKEN = process.env["OBELISK_API_TOKEN"];
@@ -378,7 +378,7 @@ async function apiGetJson(methodPath) {
     return JSON.parse(text);
 }
 
-// Bearer token for the API port (5005/5105). The API port denies unauthenticated
+// Bearer token for the API port. The API port denies unauthenticated
 // requests since 0.40.0; `API_TOKEN` is a placeholder Obelisk swaps for the real one.
 function authHeader() {
     if (!API_TOKEN) throw httpError(500, "OBELISK_API_TOKEN is not set");
