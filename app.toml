@@ -11,7 +11,7 @@ AGENT_IMAGE = { optional = true }
 AGENT_MAX_TURNS = { optional = true }
 AGENT_MODEL = { optional = true }
 HOME = {}
-OBELISK_API_URL = { optional = true }
+OBELISK_API_URL = { type = "internal", source = "api-url" }
 PATH = {}
 
 [allowed_exec_activities]
@@ -28,8 +28,15 @@ PATH = {}
 OBELISK_API_TOKEN = { type = "internal" }
 
 [[outbound_http.allowed_host]]
-pattern = "${OBELISK_API_URL:-http://127.0.0.1:5105}"
-methods = ["GET", "PUT"]
-request_url_regex = "^(GET https?://[^/]+/v1/executions|PUT https?://[^/]+/v1/executions/[^/]+/stub$)"
+url_prefix = "${OBELISK_API_URL}"
+methods = ["GET"]
+url_regex_suffix = "/v1/executions(/.*)?$"
+secrets = ["OBELISK_API_TOKEN"]
+replace_in = ["headers"]
+
+[[outbound_http.allowed_host]]
+url_prefix = "${OBELISK_API_URL}"
+methods = ["PUT"]
+url_regex_suffix = "/v1/executions/[^/]+/stub$"
 secrets = ["OBELISK_API_TOKEN"]
 replace_in = ["headers"]

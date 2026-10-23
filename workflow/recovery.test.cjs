@@ -76,7 +76,7 @@ async function fixture(mode) {
         "obelisk:webhook-dynamic@1.0.0": { schedule(id, ffqn, params) { scheduled.push({ id, ffqn, params }); } },
     }, {
         Response,
-        process: { env: { OBELISK_API_TOKEN: "test" } },
+        process: { env: { OBELISK_API_URL: "http://127.0.0.1:5105", OBELISK_API_TOKEN: "test" } },
         fetch: async (url, options) => {
             const parsed = new URL(url);
             if (options.method === "PUT") {

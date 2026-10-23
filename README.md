@@ -78,7 +78,7 @@ containers using the same image, auth mounts, default model, and extra arguments
 as real sessions. Claude's initialization control response and Codex's
 `model/list` supply the catalogs; no inference prompt is sent.
 
-The launch script uses `OBELISK_API_URL` (default `http://127.0.0.1:5105`) and
+The launch script calls the API at `http://127.0.0.1:5105` (from `server.toml`) with
 `OBELISK_API_TOKEN` (default the repository folder name). It forwards termination
 to Obelisk and waits up to `MODEL_DISCOVERY_STARTUP_TIMEOUT_SECONDS` (default 90)
 for API readiness. Starting `obelisk server run` directly bypasses the startup

@@ -20,7 +20,7 @@ serve:
 refresh-models:
   #!/usr/bin/env bash
   set -euo pipefail
-  curl --fail-with-body -sS -H "Authorization: Bearer ${OBELISK_API_TOKEN:-agent-backed-llm-server}" -H 'Content-Type: application/json' -d '{"ffqn":"agent-backed-llm:models/workflow.refresh-model-inventory","params":[]}' "${OBELISK_API_URL:-http://127.0.0.1:5105}/v1/executions"
+  curl --fail-with-body -sS -H "Authorization: Bearer ${OBELISK_API_TOKEN:-agent-backed-llm-server}" -H 'Content-Type: application/json' -d '{"ffqn":"agent-backed-llm:models/workflow.refresh-model-inventory","params":[]}' "{{api_url}}/v1/executions"
 
 # Send one prompt to the running endpoint and print the reply.
 #   just chat "Say hi in one word."          # claude backend

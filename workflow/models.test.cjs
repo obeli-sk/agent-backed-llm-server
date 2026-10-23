@@ -30,7 +30,7 @@ test("refresh submits both backend probes before awaiting and isolates their fai
 test("models endpoint preserves the last good inventory after a failed refresh", async () => {
     const handle = await loadWorkflow("../webhook/models.js", {}, {
         Response,
-        process: { env: { OBELISK_API_TOKEN: "test" } },
+        process: { env: { OBELISK_API_URL: "http://127.0.0.1:5105", OBELISK_API_TOKEN: "test" } },
         fetch: async (url, options) => {
             assert.equal(options.headers.authorization, "Bearer test");
             const parsed = new URL(url);
@@ -61,7 +61,7 @@ test("models endpoint preserves the last good inventory after a failed refresh",
 
 test("models endpoint reports pending discovery when no inventory exists", async () => {
     const handle = await loadWorkflow("../webhook/models.js", {}, {
-        Response, process: { env: { OBELISK_API_TOKEN: "test" } },
+        Response, process: { env: { OBELISK_API_URL: "http://127.0.0.1:5105", OBELISK_API_TOKEN: "test" } },
         fetch: async () => Response.json([]),
     });
     const response = await handle({ method: "GET" });
