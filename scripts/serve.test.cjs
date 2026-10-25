@@ -38,8 +38,8 @@ process.stdout.write(JSON.stringify({ ok: "E_discovery" }));
         });
         const calls = (await fs.readFile(logPath, "utf8")).trim().split("\n").map(JSON.parse);
         assert.equal(calls.length, 3);
-        assert.ok(calls[0].at(-1).endsWith("/v1/deployment-id"));
-        assert.ok(calls[1].at(-1).endsWith("/v1/deployment-id"));
+        assert.ok(calls[0].at(-1).endsWith("/v1/info"));
+        assert.ok(calls[1].at(-1).endsWith("/v1/info"));
         const submission = calls[2];
         assert.ok(submission.includes("Authorization: Bearer test-token"));
         assert.deepEqual(JSON.parse(submission[submission.indexOf("-d") + 1]), {
