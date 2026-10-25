@@ -24,7 +24,7 @@ ready=false
 while kill -0 "$server_pid" 2>/dev/null; do
   if curl --silent --fail --max-time 2 \
     -H "Authorization: Bearer $OBELISK_API_TOKEN" \
-    "$api_url/v1/deployment-id" >/dev/null; then
+    "$api_url/v1/info" >/dev/null; then
     ready=true
     break
   fi
