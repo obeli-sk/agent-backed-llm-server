@@ -191,6 +191,7 @@ location = "workflow/refresh-model-inventory.js"
 name = "refresh-model-inventory"
 ffqn = "agent-backed-llm:models/workflow.refresh-model-inventory"
 schedule = "@hourly"
+overlap = "skip"
 
 [[webhook_endpoint_js]]
 name = "models"
