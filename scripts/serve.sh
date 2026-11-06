@@ -17,7 +17,7 @@ trap stop_server EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-obelisk server run -s server.toml -a app.toml -d deployment.toml "$@" &
+obelisk server run --dev -s server.toml -a app.toml -d deployment.toml "$@" &
 server_pid=$!
 deadline=$((SECONDS + startup_timeout))
 ready=false

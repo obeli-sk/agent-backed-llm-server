@@ -196,6 +196,7 @@ overlap = "skip"
 [[webhook_endpoint_js]]
 name = "models"
 location = "webhook/models.js"
+http_server = "internal"
 routes = [{ methods = ["GET"], route = "/v1/models" }]
 env_vars = ["OBELISK_API_URL"]
 # GET /v1/executions[/<id>] -> list discovery runs and read their results.
@@ -211,6 +212,7 @@ replace_in = ["headers"]
 [[webhook_endpoint_js]]
 name = "chat-completions"
 location = "webhook/chat.js"
+http_server = "internal"
 routes = [
   { methods = ["POST"], route = "/v1/chat/completions" },
 ]

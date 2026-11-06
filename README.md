@@ -43,7 +43,14 @@ durable CLI session (the stub pair, header-less pairing, idle teardown, tool cal
 
 This app runs a **second** Obelisk instance next to [`workflow-agent`](https://github.com/obeli-sk/workflow-agent), so `server.toml`
 shifts every port +100 off the defaults: API `5105`, Web UI `8180`, and the
-external HTTP server (which serves `/v1/chat/completions`) `9190`.
+internal HTTP server (which serves `/v1/chat/completions`) `9190`.
+
+Model discovery and inference use `internal`, since inference spends LLM tokens.
+`just serve` starts it with `--dev` for local access without credentials; keep
+the listener on localhost. Hosted instances use platform authentication at
+`https://internal--<app>.<domain>`. A frontend calling that endpoint needs an
+accepted bearer token in `LLM_API_KEY`. The public `external` listener stays
+closed. Choose an app name of at most 20 characters before deploying to Obelisk Cloud.
 
 ## Run
 
