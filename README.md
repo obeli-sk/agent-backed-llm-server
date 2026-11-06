@@ -66,6 +66,8 @@ claude        # authenticate once (OAuth) -> ~/.claude ; or `codex login` -> ~/.
 # OBELISK_API_TOKEN, which the server also accepts. `direnv` users get one from
 # .envrc-example; otherwise export it before `just serve`:
 export OBELISK_API_TOKEN=$(obelisk generate token)
+export OBELISK_API_URL=http://127.0.0.1:5105
+export INTERNAL_BASE_URL=http://127.0.0.1:9190
 
 just serve    # start Obelisk, wait for its API, then submit model discovery
 ```
@@ -85,15 +87,18 @@ containers using the same image, auth mounts, default model, and extra arguments
 as real sessions. Claude's initialization control response and Codex's
 `model/list` supply the catalogs; no inference prompt is sent.
 
-The launch script calls the API at `http://127.0.0.1:5105` (from `server.toml`) with
+The launch script calls `OBELISK_API_URL` with
 `OBELISK_API_TOKEN` (default the repository folder name). It forwards termination
 to Obelisk and waits up to `MODEL_DISCOVERY_STARTUP_TIMEOUT_SECONDS` (default 90)
 for API readiness. Starting `obelisk server run` directly bypasses the startup
 refresh. An hourly cron refresh runs independently and survives restarts.
+Set `OBELISK_API_URL` and `INTERNAL_BASE_URL` to the configured listener URLs.
+The external launch/chat helpers require these shell variables; app components
+receive their own API URL from the internal `api-url` source.
 
 ```sh
 just refresh-models                        # submit a refresh manually
-curl -fsS http://127.0.0.1:9190/v1/models    # read the persisted inventory
+curl -fsS "$INTERNAL_BASE_URL/v1/models"    # read the persisted inventory
 ```
 
 `GET /v1/models` returns an OpenAI-shaped list with explicit wire IDs such as
@@ -113,7 +118,7 @@ Rebuild the image with `just build` before using discovery for the first time.
 To generate an explicit fallback `AGENT_MODELS` catalog for a client:
 
 ```sh
-export AGENT_MODELS=$(curl -fsS http://127.0.0.1:9190/v1/models | jq '[.data[] |
+export AGENT_MODELS=$(curl -fsS "$INTERNAL_BASE_URL/v1/models" | jq '[.data[] |
   {id, label: .display_name, api_type: "openai-chat-completions", wire_model: .id}]')
 ```
 
@@ -126,7 +131,7 @@ nix develop -c node --experimental-vm-modules --test agent-server/*.test.js work
 ## Test
 
 ```sh
-curl -i http://127.0.0.1:9190/v1/chat/completions \
+curl -i "$INTERNAL_BASE_URL/v1/chat/completions" \
   -H content-type:application/json -d '{
     "model": "claude",
     "messages": [{"role":"user","content":"Say hi in one word."}]

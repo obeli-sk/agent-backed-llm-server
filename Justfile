@@ -1,5 +1,4 @@
 image := "docker.io/getobelisk/agent-backed-llm-server:latest"
-api_url := "http://127.0.0.1:5105"          # server.toml moves the API off the default 5005
 
 build:
   docker build -t {{image}} agent-server
@@ -20,7 +19,7 @@ serve:
 refresh-models:
   #!/usr/bin/env bash
   set -euo pipefail
-  curl --fail-with-body -sS -H "Authorization: Bearer ${OBELISK_API_TOKEN:-agent-backed-llm-server}" -H 'Content-Type: application/json' -d '{"ffqn":"agent-backed-llm:models/workflow.refresh-model-inventory","params":[]}' "{{api_url}}/v1/executions"
+  obelisk execution submit agent-backed-llm:models/workflow.refresh-model-inventory --
 
 # Send one prompt to the running endpoint and print the reply.
 #   just chat "Say hi in one word."          # claude backend

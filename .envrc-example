@@ -2,3 +2,5 @@ use flake .
 
 # Token for the launcher and `just refresh-models`; the webhooks use the startup token.
 export OBELISK_API_TOKEN=$(obelisk generate token)
+export OBELISK_API_URL=http://127.0.0.1:5105
+export INTERNAL_BASE_URL=http://127.0.0.1:9190

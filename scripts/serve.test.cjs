@@ -24,7 +24,7 @@ if (!args.includes("-d")) process.exit(previous ? 0 : 22);
 process.stdout.write(JSON.stringify({ ok: "E_discovery" }));
 `, { mode: 0o755 });
     const launcher = spawn("bash", [path.join(__dirname, "serve.sh")], {
-        env: { ...process.env, PATH: `${directory}${path.delimiter}${process.env.PATH}`, OBELISK_API_TOKEN: "test-token", TEST_LOG_PATH: logPath, TEST_STOP_PATH: stopPath },
+        env: { ...process.env, PATH: `${directory}${path.delimiter}${process.env.PATH}`, OBELISK_API_TOKEN: "test-token", OBELISK_API_URL: "http://configured-api.test:12345/", TEST_LOG_PATH: logPath, TEST_STOP_PATH: stopPath },
         stdio: ["ignore", "ignore", "pipe"],
     });
     const closed = once(launcher, "close");
@@ -38,8 +38,8 @@ process.stdout.write(JSON.stringify({ ok: "E_discovery" }));
         });
         const calls = (await fs.readFile(logPath, "utf8")).trim().split("\n").map(JSON.parse);
         assert.equal(calls.length, 3);
-        assert.ok(calls[0].at(-1).endsWith("/v1/info"));
-        assert.ok(calls[1].at(-1).endsWith("/v1/info"));
+        assert.equal(calls[0].at(-1), "http://configured-api.test:12345/v1/info");
+        assert.equal(calls[1].at(-1), "http://configured-api.test:12345/v1/info");
         const submission = calls[2];
         assert.ok(submission.includes("Authorization: Bearer test-token"));
         assert.deepEqual(JSON.parse(submission[submission.indexOf("-d") + 1]), {
