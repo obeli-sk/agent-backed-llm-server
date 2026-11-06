@@ -4,7 +4,7 @@
 # Usage: scripts/chat.sh "your prompt" [model]
 #   model defaults to "claude"; anything containing "codex" or starting with
 #   gpt/o1/o3 routes to the codex backend (see README.md).
-# Env: PORT (default 9190, the external HTTP port from server.toml).
+# Env: PORT (default 9190, the internal HTTP port from server.toml).
 
 set -euo pipefail
 
