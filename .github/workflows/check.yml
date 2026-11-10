@@ -73,6 +73,4 @@ jobs:
         run: nix develop --command obelisk deployment verify -d deployment.toml
 
       - name: obelisk server verify
-        env:
-          OBELISK__HTTP_SERVER__INTERNAL__API_AUTH: "true"
-        run: nix develop --command obelisk server verify --skip-db --server-config server.toml --app-config app.toml -d deployment.toml
+        run: nix develop --command obelisk server verify --dev --skip-db --server-config server.toml --app-config app.toml -d deployment.toml

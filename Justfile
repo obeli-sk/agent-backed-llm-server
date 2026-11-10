@@ -8,10 +8,10 @@ rebuild:
 
 verify:
   obelisk deployment verify -d deployment.toml
-  OBELISK__HTTP_SERVER__INTERNAL__API_AUTH=true obelisk server verify --skip-db -s server.toml -a app.toml -d deployment.toml
+  obelisk server verify --dev --skip-db -s server.toml -a app.toml -d deployment.toml
 
 fix:
-  OBELISK__HTTP_SERVER__INTERNAL__API_AUTH=true obelisk server verify --skip-db --fix -s server.toml -a app.toml -d deployment.toml
+  obelisk server verify --dev --skip-db --fix -s server.toml -a app.toml -d deployment.toml
 
 serve:
   bash scripts/serve.sh
