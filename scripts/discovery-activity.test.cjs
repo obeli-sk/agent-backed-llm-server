@@ -22,7 +22,7 @@ if (args[0] === "run") {
             await fs.writeFile(logPath, "");
             const result = spawnSync(process.execPath, [path.join(__dirname, "../activity/discover-models.js")], {
                 encoding: "utf8",
-                env: { ...process.env, PATH: `${directory}${path.delimiter}${process.env.PATH}`, AGENT_BACKEND: "codex", AGENT_IMAGE: "test-image", AGENT_HOST_CODEX_DIR: directory, TEST_LOG_PATH: logPath, TEST_FAIL: failed ? "1" : "" },
+                env: { ...process.env, PATH: `${directory}${path.delimiter}${process.env.PATH}`, AGENT_IMAGE: "test-image", AGENT_HOST_CODEX_DIR: directory, TEST_LOG_PATH: logPath, TEST_FAIL: failed ? "1" : "" },
             });
             assert.equal(result.status, failed ? 1 : 0);
             const payload = JSON.parse(result.stdout);

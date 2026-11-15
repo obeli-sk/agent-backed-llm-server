@@ -1,5 +1,5 @@
 // Long-running session workflow: one per conversation. It owns the docker
-// container + warm claude/codex CLI (via the exec activities). After the
+// container + warm Codex CLI (via the exec activities). After the
 // container is up it hands the turn loop to a child workflow and awaits it,
 // then tears the container down in `finally`.
 //
@@ -10,19 +10,14 @@
 // It does not weaken structured concurrency: this parent still outlives the
 // child and still runs the container cleanup below.
 
-import * as claude from "agent-backed-llm:agent/claude";
 import * as codex from "agent-backed-llm:agent/codex";
 import * as session from "agent-backed-llm:agent/session";
 import { agentLoopCancellable } from "agent-backed-llm:session/loop";
 import * as obelisk from "obelisk:workflow@1.0.0";
 import { typedError } from "../errors.js";
 
-const STARTERS = { claude: claude.start, codex: codex.start };
-
 export default function sessionWorkflow(backend, systemPrompt, maxTurns, model, recovery) {
-    const which = (typeof backend === "string" && backend) ? backend : "claude";
-    const start = STARTERS[which];
-    if (!start) throw { permanent_error: `unknown backend: ${which} (expected claude or codex)` };
+    if (backend && backend !== "codex") throw { permanent_error: `unknown backend: ${backend} (expected codex)` };
     if (typeof systemPrompt !== "string") throw { permanent_error: "system-prompt is required" };
     const cliModel = typeof model === "string" ? model : "";
 
@@ -35,8 +30,8 @@ export default function sessionWorkflow(backend, systemPrompt, maxTurns, model, 
     let outcome = "session ended";
     let failureCase = "permanent_start_failed";
     try {
-        const startInfo = start(containerName, socketPath, systemPrompt, cliModel);
-        console.log(`Started ${which} agent ${startInfo.container} from ${startInfo.image}`);
+        const startInfo = codex.start(containerName, socketPath, systemPrompt, cliModel);
+        console.log(`Started Codex agent ${startInfo.container} from ${startInfo.image}`);
         failureCase = "permanent_error";
         outcome = agentLoopCancellable(socketPath, systemPrompt, maxTurns, recovery ?? null);
     } catch (error) {

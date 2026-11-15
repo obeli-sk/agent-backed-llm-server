@@ -6,9 +6,6 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates git \
  && rm -rf /var/lib/apt/lists/*
 
-ARG CLAUDE_CODE_VERSION=latest
-RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
-
 # codex backend. server.js depends on the `codex exec --json` thread/turn event
 # schema (thread.started / item.completed / turn.completed); pin if it drifts.
 ARG CODEX_VERSION=latest

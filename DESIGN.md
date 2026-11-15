@@ -5,10 +5,9 @@ CLI session. For what the app is and how to run it, see [README.md](README.md).
 
 ## Why a warm session, and the problem it creates
 
-`claude` and `codex` are not chat models; they are stateful agents that keep a
-live session (working directory, edited files, their own context). To preserve
-that across turns, one long-running workflow owns one warm CLI process per
-conversation, exactly as the container does today.
+Codex keeps a session with a working directory, edited files, and conversation
+context. One long-running workflow owns a container per conversation. Each turn
+runs `codex exec`, resuming the same thread after the first turn.
 
 But Chat Completions is **stateless**: there is no session id on the wire, and
 the client resends the whole message history every call. So the backend has to
@@ -213,9 +212,9 @@ Completions while the CLI keeps running its own inner FS/shell loop.
 ## Layout
 
 ```
-agent-server/        docker image: node + claude-code + codex + server.js (socket normalizer)
+agent-server/        docker image: node + codex + server.js (socket normalizer)
 activity/
-  agent-start.js     spawn the container, wait for the socket   (claude.start / codex.start)
+  agent-start.js     spawn the container, wait for the socket   (codex.start)
   agent-send.js      send one agent-input                        (session.send)
   agent-recv.js      drain one turn, typed reply                 (session.recv)
   agent-cleanup.js   shut the server down, docker rm             (session.cleanup)

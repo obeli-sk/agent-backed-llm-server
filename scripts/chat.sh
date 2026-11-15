@@ -2,14 +2,12 @@
 
 # Send one prompt to the /v1/chat/completions endpoint and print the reply.
 # Usage: scripts/chat.sh "your prompt" [model]
-#   model defaults to "claude"; anything containing "codex" or starting with
-#   gpt/o1/o3 routes to the codex backend (see README.md).
-# Env: INTERNAL_BASE_URL, the configured internal listener URL.
+#   model defaults to "codex" (see README.md).
 
 set -euo pipefail
 
 prompt=${1:?usage: chat.sh "<prompt>" [model]}
-model=${2:-claude}
+model=${2:-codex}
 internal_base_url=${INTERNAL_BASE_URL:?Set INTERNAL_BASE_URL to the configured internal address}
 internal_base_url=${internal_base_url%/}
 

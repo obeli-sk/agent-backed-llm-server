@@ -49,7 +49,6 @@ process.stdin.on("end", () => {
     env: {
       ...process.env,
       PATH: `${directory}${path.delimiter}${process.env.PATH}`,
-      AGENT_BACKEND: "codex",
       AGENT_MODEL: "gpt-5.5",
       AGENT_EXTRA_ARGS: "",
       AGENT_SYSTEM_PROMPT_PATH: promptPath,
