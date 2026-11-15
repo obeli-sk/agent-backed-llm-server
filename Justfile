@@ -22,7 +22,5 @@ refresh-models:
   obelisk execution submit agent-backed-llm:models/workflow.refresh-model-inventory --
 
 # Send one prompt to the running endpoint and print the reply.
-#   just chat "Say hi in one word."          # claude backend
-#   just chat "2+2?" codex                    # codex backend
-chat prompt model="claude":
+chat prompt model="codex":
   ./scripts/chat.sh "{{prompt}}" "{{model}}"

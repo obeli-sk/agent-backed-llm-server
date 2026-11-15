@@ -3,8 +3,8 @@
 > [!WARNING]
 > **Vibe coded**: This codebase was generated using an agent, testing the limits of this approach.
 
-An OpenAI-compatible **LLM endpoint** backed by a Claude or Codex CLI running in
-docker. It lets a subscription (`~/.claude` / `~/.codex` login, no API key) be
+An OpenAI-compatible **LLM endpoint** backed by the Codex CLI running in
+docker. It lets a subscription (`~/.codex` login, no API key) be
 consumed through the standard `POST /v1/chat/completions` wire protocol.
 
 It is the backend half of a split with
@@ -19,11 +19,11 @@ FRONTEND  workflow-agent           THE AGENT (FFQN prefix: obelisk-agent)
              v
 BACKEND   agent-backed-llm-server   THE ENDPOINT (this app)
   - webhook receives the request, a long-running workflow (one per conversation)
-    owns the docker container + warm claude/codex CLI and answers the turn
+    owns the docker container + warm Codex CLI and answers the turn
 ```
 
 The frontend can point `LLM_BASE_URL` at this app **or** straight at OpenRouter /
-OpenAI / vLLM / Ollama. This app only exists so a Claude/Codex *subscription* (no
+OpenAI / vLLM / Ollama. This app only exists so a Codex *subscription* (no
 API key) can be spoken to over the same standard wire.
 
 The gateway passes the client's system message to the CLI, alongside its tool
@@ -56,10 +56,10 @@ closed. Choose an app name of at most 20 characters before deploying to Obelisk 
 
 ```sh
 just build    # build docker.io/getobelisk/agent-backed-llm-server:latest
-just rebuild  # refresh the base image and reinstall both CLIs without build cache
+just rebuild  # refresh the base image and reinstall Codex without build cache
 
-claude        # authenticate once (OAuth) -> ~/.claude ; or `codex login` -> ~/.codex
-              # AGENT_HOST_CLAUDE_DIR / AGENT_HOST_CODEX_DIR select what gets mounted
+codex login  # authenticate once -> ~/.codex
+             # AGENT_HOST_CODEX_DIR selects what gets mounted
 
 # The webhooks call this server's API with its startup token (an internal
 # secret in app.toml). `just serve` and `just refresh-models` still present
@@ -82,10 +82,10 @@ drop the old digest and copy the new one into the `server.toml` exec gate.
 
 `just serve` runs `scripts/serve.sh`, which submits
 `agent-backed-llm:models/workflow.refresh-model-inventory` after the authenticated
-API is ready. Each refresh probes Claude and Codex concurrently in short-lived
-containers using the same image, auth mounts, default model, and extra arguments
-as real sessions. Claude's initialization control response and Codex's
-`model/list` supply the catalogs; no inference prompt is sent.
+API is ready. Each refresh probes Codex in a short-lived
+container using the same image, auth mounts, default model, and extra arguments
+as real sessions. Codex app-server's
+`model/list` supplies the catalog; no inference prompt is sent.
 
 The launch script calls `OBELISK_API_URL` with
 `OBELISK_API_TOKEN` (default the repository folder name). It forwards termination
@@ -102,11 +102,11 @@ curl -fsS "$INTERNAL_BASE_URL/v1/models"    # read the persisted inventory
 ```
 
 `GET /v1/models` returns an OpenAI-shaped list with explicit wire IDs such as
-`codex/<discovered-model>` and `claude/<discovered-model>`. Each entry includes its
+`codex/<discovered-model>`. Each entry includes its
 display name, CLI capabilities, and discovery timestamp. The `backends` metadata
 reports `ready`, `stale`, `unavailable`, or `pending`, the last attempt, and any
 failure. A failed refresh preserves the last successful catalog for that
-backend. With no successful discovery it returns HTTP 503; a partial inventory
+backend. With no successful discovery it returns HTTP 503; a cached inventory
 returns HTTP 200. Results live in Obelisk's execution history, so normal execution
 retention also controls how long cached catalogs survive.
 
@@ -133,16 +133,16 @@ nix develop -c node --experimental-vm-modules --test agent-server/*.test.js work
 ```sh
 curl -i "$INTERNAL_BASE_URL/v1/chat/completions" \
   -H content-type:application/json -d '{
-    "model": "claude",
+    "model": "codex",
     "messages": [{"role":"user","content":"Say hi in one word."}]
   }'
 ```
 
-Or use the helper, which takes a prompt and an optional model (default `claude`):
+Or use the helper, which takes a prompt and an optional model (default `codex`):
 
 ```sh
-just chat "Say hi in one word."          # claude backend
-just chat "Say hi in one word." codex    # codex backend
+just chat "Say hi in one word."
+just chat "Say hi in one word." codex/gpt-5.5
 # equivalently: ./scripts/chat.sh "<prompt>" [model]
 ```
 
@@ -152,21 +152,18 @@ workflow execution id to inspect with `obelisk execution status/events/result`.
 Point the
 [`workflow-agent`](https://github.com/obeli-sk/workflow-agent) frontend (or any
 OpenAI client) at
-`http://127.0.0.1:9190` as its `LLM_BASE_URL`. `model` selects the backend: a
-model containing `codex`, or starting with `gpt`/`o1`/`o3`, routes to codex;
-otherwise claude.
+`http://127.0.0.1:9190` as its `LLM_BASE_URL`. All requests use Codex.
 
 ### Selecting the model per request
 
-`model` can also pick the concrete CLI model, as `<backend>/<model>`: everything
-after the first `/` is passed through to the CLI (`claude --model …` /
-`codex -m …`). Without a `/`, the backend's deploy-time default applies
-(`AGENT_MODEL` / `AGENT_CODEX_MODEL`, see [Run](#run)).
+`model` selects a concrete CLI model as `codex/<model>`. Everything after the
+first `/` is passed to `codex -m`. Without a `/`, the deploy-time default
+applies (`AGENT_CODEX_MODEL`, default `gpt-5.5`).
+Use `AGENT_CODEX_EXTRA_ARGS` for additional CLI arguments.
 
 ```sh
-just chat "hi" claude/opus       # claude, model "opus"
-just chat "hi" codex/gpt-5.5     # codex, model "gpt-5.5"
-just chat "hi" claude            # claude, deploy-time default model
+just chat "hi" codex/gpt-5.5     # model "gpt-5.5"
+just chat "hi" codex             # deploy-time default model
 ```
 
 The model is fixed when the session starts (turn 0). A warm session keeps its

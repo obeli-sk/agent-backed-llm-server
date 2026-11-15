@@ -48,7 +48,6 @@ test("session preserves typed child errors after cleaning up the container", asy
     let cleanedUp = false;
     const start = () => ({ container: "test-container", image: "test-image" });
     const session = await loadWorkflow("session.js", {
-        "agent-backed-llm:agent/claude": { start },
         "agent-backed-llm:agent/codex": { start },
         "agent-backed-llm:agent/session": { cleanup() { cleanedUp = true; } },
         "agent-backed-llm:session/loop": {
@@ -64,7 +63,6 @@ test("platform failures retain execution-failed when cleanup also fails", async 
     let cleanedUp = false;
     const start = () => ({ container: "test-container", image: "test-image" });
     const session = await loadWorkflow("session.js", {
-        "agent-backed-llm:agent/claude": { start },
         "agent-backed-llm:agent/codex": { start },
         "agent-backed-llm:agent/session": {
             cleanup() {
@@ -89,7 +87,6 @@ test("startup and cleanup failures are mapped to distinct variants", async () =>
             return { container: "test-container", image: "test-image" };
         };
         const session = await loadWorkflow("session.js", {
-            "agent-backed-llm:agent/claude": { start },
             "agent-backed-llm:agent/codex": { start },
             "agent-backed-llm:agent/session": {
                 cleanup() {

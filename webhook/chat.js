@@ -1,4 +1,4 @@
-// OpenAI-compatible chat-completions endpoint backed by a warm claude/codex CLI.
+// OpenAI-compatible chat-completions endpoint backed by a warm Codex CLI.
 //
 //   POST /v1/chat/completions   { model, messages, tools? }  ->  chat.completion
 //
@@ -81,7 +81,7 @@ async function turnZero(messages, systemPrompt, tools, model) {
 }
 
 async function restoreSession(messages, systemPrompt, tools, model, lastAssistant) {
-    const workflowSystem = renderWorkflowSystemPrompt(pickBackend(model), tools, systemPrompt);
+    const workflowSystem = renderWorkflowSystemPrompt("codex", tools, systemPrompt);
     const recovery = JSON.stringify({
         prefix_hash: computePrefixHash(workflowSystem, messages, lastAssistant),
         messages,
@@ -91,7 +91,7 @@ async function restoreSession(messages, systemPrompt, tools, model, lastAssistan
 }
 
 async function startSession(systemPrompt, tools, model, delta, recovery) {
-    const backend = pickBackend(model);
+    const backend = "codex";
     const cliModel = pickModel(model);
     const sessionId = obelisk.executionIdGenerate();
     const workflowSystem = renderWorkflowSystemPrompt(backend, tools, systemPrompt);
@@ -108,7 +108,7 @@ async function startSession(systemPrompt, tools, model, delta, recovery) {
 // Turn k>=1: pair by the committed-history hash, deliver the delta (idempotently),
 // and return the response-stub id to read the reply from.
 async function continuation(messages, systemPrompt, tools, model, lastAssistant) {
-    const workflowSystem = renderWorkflowSystemPrompt(pickBackend(model), tools, systemPrompt);
+    const workflowSystem = renderWorkflowSystemPrompt("codex", tools, systemPrompt);
     const prefixHash = computePrefixHash(workflowSystem, messages, lastAssistant);
     const priorToolCalls = toolCallsOf(messages[lastAssistant]);
     const delta = messagesToInput(messages.slice(lastAssistant + 1), priorToolCalls);
@@ -387,16 +387,7 @@ function authHeader() {
 
 // ---- misc --------------------------------------------------------------------
 
-function pickBackend(model) {
-    const m = (model || "").toLowerCase();
-    if (m.includes("codex") || m.startsWith("gpt") || m.startsWith("o1") || m.startsWith("o3")) return "codex";
-    return "claude";
-}
-// Prefix-stripped passthrough: "<backend>/<model>" (e.g. "claude/opus-4-8",
-// "codex/gpt-5.5") passes everything after the first "/" to the CLI as the
-// model. No "/" (e.g. bare "claude" or "gpt-5") => "" => the deploy-time
-// default. The model is fixed when the session starts (turn 0); continuation
-// turns reuse it, since pairing hashes history, not the model.
+// Prefixed models select a CLI model; bare aliases use the deployment default.
 function pickModel(model) {
     const i = (model || "").indexOf("/");
     return i === -1 ? "" : model.slice(i + 1).trim();

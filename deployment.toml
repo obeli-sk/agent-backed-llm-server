@@ -1,31 +1,7 @@
 # agent-backed-llm-server: an OpenAI-compatible /v1/chat/completions endpoint
-# backed by a warm claude/codex CLI in docker. See DESIGN.md for the design.
+# backed by a warm Codex CLI in docker. See DESIGN.md for the design.
 #
-# --- Agent lifecycle: provider-specific start (one per backend) ---------------
-# Both point to agent-start.js; AGENT_BACKEND selects the auth mount + CLI, and
-# the container's server.js spawns the right backend.
-
-[[activity_exec]]
-ffqn = "agent-backed-llm:agent/claude.start"
-params = [
-  { name = "container-name", type = "string" },
-  { name = "socket",         type = "string" },
-  { name = "system-prompt",  type = "string" },
-  { name = "model",          type = "string" },
-]
-return_type = "result<record { container: string, image: string, socket: string, id: string }, string>"
-location = "activity/agent-start.js"
-exec.lock_expiry.minutes = 2
-max_retries = 1
-env_vars = [
-  "PATH",
-  "HOME",
-  { key = "AGENT_IMAGE",           value = "${AGENT_IMAGE:-docker.io/getobelisk/agent-backed-llm-server:latest}" },
-  { key = "AGENT_BACKEND",         value = "claude" },
-  { key = "AGENT_MODEL",           value = "${AGENT_MODEL:-claude-opus-4-7}" },
-  { key = "AGENT_EXTRA_ARGS",      value = "${AGENT_EXTRA_ARGS:-}" },
-  { key = "AGENT_HOST_CLAUDE_DIR", value = "${AGENT_HOST_CLAUDE_DIR:-${HOME}/.claude}" },
-]
+# --- Agent lifecycle --------------------------------------------------------
 
 [[activity_exec]]
 ffqn = "agent-backed-llm:agent/codex.start"
@@ -43,13 +19,12 @@ env_vars = [
   "PATH",
   "HOME",
   { key = "AGENT_IMAGE",          value = "${AGENT_IMAGE:-docker.io/getobelisk/agent-backed-llm-server:latest}" },
-  { key = "AGENT_BACKEND",        value = "codex" },
   { key = "AGENT_MODEL",          value = "${AGENT_CODEX_MODEL:-gpt-5.5}" },
   { key = "AGENT_EXTRA_ARGS",     value = "${AGENT_CODEX_EXTRA_ARGS:-}" },
   { key = "AGENT_HOST_CODEX_DIR", value = "${AGENT_HOST_CODEX_DIR:-${HOME}/.codex}" },
 ]
 
-# --- Agent session: provider-agnostic send / recv / cleanup -------------------
+# --- Agent session: send / recv / cleanup -------------------
 
 [[activity_exec]]
 ffqn = "agent-backed-llm:agent/session.send"
@@ -148,23 +123,6 @@ location = "workflow/agent-loop.js"
 # --- Model discovery ---------------------------------------------------------
 
 [[activity_exec]]
-ffqn = "agent-backed-llm:models/claude.discover-models"
-params = []
-return_type = "result<string, string>"
-location = "activity/discover-models.js"
-exec.lock_expiry.seconds = 90
-max_retries = 0
-max_output_bytes = 1048576
-env_vars = [
-  "PATH", "HOME",
-  { key = "AGENT_BACKEND", value = "claude" },
-  { key = "AGENT_IMAGE", value = "${AGENT_IMAGE:-docker.io/getobelisk/agent-backed-llm-server:latest}" },
-  { key = "AGENT_MODEL", value = "${AGENT_MODEL:-claude-opus-4-7}" },
-  { key = "AGENT_EXTRA_ARGS", value = "${AGENT_EXTRA_ARGS:-}" },
-  { key = "AGENT_HOST_CLAUDE_DIR", value = "${AGENT_HOST_CLAUDE_DIR:-${HOME}/.claude}" },
-]
-
-[[activity_exec]]
 ffqn = "agent-backed-llm:models/codex.discover-models"
 params = []
 return_type = "result<string, string>"
@@ -174,7 +132,6 @@ max_retries = 0
 max_output_bytes = 1048576
 env_vars = [
   "PATH", "HOME",
-  { key = "AGENT_BACKEND", value = "codex" },
   { key = "AGENT_IMAGE", value = "${AGENT_IMAGE:-docker.io/getobelisk/agent-backed-llm-server:latest}" },
   { key = "AGENT_MODEL", value = "${AGENT_CODEX_MODEL:-gpt-5.5}" },
   { key = "AGENT_EXTRA_ARGS", value = "${AGENT_CODEX_EXTRA_ARGS:-}" },

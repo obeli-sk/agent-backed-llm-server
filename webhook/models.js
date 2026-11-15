@@ -38,7 +38,7 @@ async function inventoryFor(backend) {
 export default async function handle(request) {
     if (request.method !== "GET") return Response.json({ error: { message: "method not allowed" } }, { status: 405 });
     try {
-        const inventories = await Promise.all(["claude", "codex"].map(inventoryFor));
+        const inventories = await Promise.all(["codex"].map(inventoryFor));
         const data = inventories.flatMap((inventory) => inventory.models);
         return Response.json({
             object: "list", data,

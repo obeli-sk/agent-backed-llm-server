@@ -1,42 +1,6 @@
 #!/usr/bin/env node
 
-// Provider-specific normalizer. Spawns the configured agent backend and
-// translates its native event stream into the common agent protocol below, so
-// the host activities, the workflow, and the UI never parse LLM JSON.
-//
-// Two backends, selected by AGENT_BACKEND:
-//   - claude: one persistent `claude -p --input-format stream-json ...` process;
-//     each turn is a user message written to its stdin; events stream out
-//     continuously and a turn ends at a `result` event.
-//   - codex: `codex exec --json` per turn, continued across turns with
-//     `codex exec resume <thread_id> --json`. codex runs its full tool loop
-//     within each turn; a turn ends at `turn.completed` / `turn.failed`. The
-//     codex session is persisted under $CODEX_HOME (host-mounted ~/.codex).
-//
-// Socket protocol: each connection writes one JSON line, half-closes, reads one
-// JSON line back.
-//
-//   { "op": "send", "input": { "prompt": "..." }, "operator_messages": [...] }
-//   { "op": "send", "input": { "tool_results": [...] }, "operator_messages": [...] }
-//      Renders the common agent-input into one user message, begins a new turn.
-//
-//   { "op": "recv", "timeout_ms": 30000 }
-//      Polls the current turn. Returns { "ok": true, "outcome": ..., "raw": [...] }
-//      where outcome is one of:
-//        "working"                                  turn still streaming
-//        "reply",      reply: {final}|{error}|{tool_calls}, narration: string
-//                                                   turn complete, parsed reply
-//                                                   plus the model's prose/thinking
-//        "rate_limited", rate_limit: {retry_after_seconds, message}
-//        "exited",     error: string                backend died mid-turn
-//        "malformed",  error: string                reply did not match envelope
-//                                                    (recoverable: workflow re-prompts)
-//        "error",      error: string                backend reported a turn failure
-//      "raw" carries the native events seen since the last poll, for the
-//      activity to echo to its stderr (debugging only; not in the typed return).
-//
-//   { "op": "status" }    Diagnostics.
-//   { "op": "shutdown" }  Best-effort graceful shutdown.
+// Runs Codex turns and normalizes their events over a Unix socket.
 
 import fs from "node:fs";
 import net from "node:net";
@@ -50,7 +14,6 @@ if (!SOCKET_PATH) {
   process.exit(2);
 }
 
-const BACKEND = process.env.AGENT_BACKEND || "claude";
 const MODEL = process.env.AGENT_MODEL || "";
 // Orphan guard: self-terminate if no op arrives for this long, so a container
 // cannot outlive a wedged session workflow (a failed auto-upgrade, a crash, or
@@ -103,12 +66,6 @@ function attachStdout(child, onEvent) {
 function attachStderr(child, label) {
   child.stderr.setEncoding("utf-8");
   child.stderr.on("data", (chunk) => process.stderr.write(`[${label} stderr] ${chunk}`));
-}
-
-function writeLine(child, line) {
-  return new Promise((resolve, reject) => {
-    child.stdin.write(line + "\n", (err) => (err ? reject(err) : resolve()));
-  });
 }
 
 // ---- shared parsing helpers -------------------------------------------------
@@ -286,22 +243,6 @@ function dropFinalAnswer(text, reply) {
   return text;
 }
 
-// Concatenated text of the last claude assistant message in a turn slice.
-function lastAssistantText(turnSlice) {
-  for (let i = turnSlice.length - 1; i >= 0; i -= 1) {
-    const e = turnSlice[i];
-    if (!e || e.type !== "assistant") continue;
-    const content = e.message && e.message.content;
-    if (!Array.isArray(content)) continue;
-    const text = content
-      .filter((b) => b && b.type === "text" && typeof b.text === "string")
-      .map((b) => b.text)
-      .join("");
-    if (text) return text;
-  }
-  return "";
-}
-
 // Text of the last codex `agent_message` item in a turn slice. A codex turn can
 // emit several agent_message items (preambles between tool calls); the final
 // one carries the envelope.
@@ -343,82 +284,6 @@ function looksRateLimited(message) {
   return /\b(429|too many requests|rate limit|usage limit|quota|session limit)\b/i.test(message || "");
 }
 
-// ---- claude backend (one persistent process) --------------------------------
-
-function makeClaudeBackend() {
-  let child = null;
-  let exited = false;
-  let exitInfo = null;
-
-  return {
-    name: "claude",
-    init() {
-      const systemPrompt = fs.readFileSync(SYSTEM_PROMPT_PATH, "utf-8");
-      // We intentionally do NOT pass --json-schema: it injects a synthetic
-      // StructuredOutput tool plus a stop hook that doubles every assistant
-      // message. The system prompt alone defines the envelope.
-      const args = [
-        "-p",
-        "--input-format", "stream-json",
-        "--output-format", "stream-json",
-        "--verbose",
-      ];
-      if (MODEL) args.push("--model", MODEL);
-      args.push("--append-system-prompt", systemPrompt);
-      if (EXTRA) args.push(...EXTRA.split(/\s+/));
-      console.error(`[server] spawning claude (model=${MODEL || "default"}, ${systemPrompt.length}B prompt)`);
-      child = spawn("claude", args, { stdio: ["pipe", "pipe", "pipe"], env: process.env });
-      attachStdout(child);
-      attachStderr(child, "claude");
-      child.on("exit", (code, signal) => {
-        exited = true; exitInfo = { code, signal };
-        console.error(`[server] claude exited code=${code} signal=${signal}`);
-      });
-      child.on("error", (err) => {
-        exited = true; exitInfo = { code: null, signal: null, error: err.message };
-        console.error(`[server] claude spawn error: ${err.message}`);
-      });
-    },
-    async send(text /*, turnIndex */) {
-      if (exited) throw new Error("claude has exited");
-      const event = { type: "user", message: { role: "user", content: [{ type: "text", text }] } };
-      await writeLine(child, JSON.stringify(event));
-    },
-    isTerminator(ev) { return !!ev && ev.type === "result"; },
-    classify(turnSlice, termEv) {
-      if (termEv.is_error === true && termEv.api_error_status === 429) {
-        const message = typeof termEv.result === "string" && termEv.result ? termEv.result : "session limit reached";
-        return { kind: "rate_limited", rate_limit: { retry_after_seconds: secondsUntilReset(message), message } };
-      }
-      const text = typeof termEv.result === "string" && termEv.result ? termEv.result : lastAssistantText(turnSlice);
-      const reply = extractReply(text);
-      if (!reply) return { kind: "malformed", error: `reply did not match envelope: ${text.slice(0, 500)}` };
-      return { kind: "reply", reply };
-    },
-    // The model's prose + thinking for this turn, minus the envelope, so the UI
-    // can show what the agent reasoned (not just the tool calls it emitted). On a
-    // final turn the prose *is* the answer, so drop it: only thinking remains.
-    narrate(turnSlice, reply) {
-      const parts = [];
-      for (const e of turnSlice) {
-        if (!e || e.type !== "assistant") continue;
-        const content = e.message && e.message.content;
-        if (!Array.isArray(content)) continue;
-        for (const b of content) {
-          if (!b) continue;
-          if (b.type === "thinking" && typeof b.thinking === "string") parts.push(b.thinking);
-          else if (b.type === "text" && typeof b.text === "string") parts.push(stripEnvelopes(b.text));
-        }
-      }
-      return boundNarration(dropFinalAnswer(parts.join("\n"), reply));
-    },
-    isFatallyExited() { return exited; },
-    exitInfo() { return exitInfo; },
-    shutdown() { try { child.stdin.end(); } catch (_) {} try { child.kill("SIGTERM"); } catch (_) {} },
-    status() { return { exited, exit: exitInfo }; },
-  };
-}
-
 // ---- codex backend (one `codex exec` process per turn) ----------------------
 
 function makeCodexBackend() {
@@ -431,7 +296,6 @@ function makeCodexBackend() {
   let prevClose = Promise.resolve();
 
   return {
-    name: "codex",
     init() {
       fs.readFileSync(SYSTEM_PROMPT_PATH, "utf-8"); // fail fast if missing
       console.error(`[server] codex backend ready (model=${MODEL || "config default"})`);
@@ -523,16 +387,12 @@ function makeCodexBackend() {
       }
       return boundNarration(dropFinalAnswer(parts.join("\n"), reply));
     },
-    // Per-turn process exits are normal; only an unterminated turn is fatal, and
-    // that is surfaced via the synthetic turn.failed event above.
-    isFatallyExited() { return false; },
-    exitInfo() { return null; },
     shutdown() { try { if (turnChild) turnChild.kill("SIGTERM"); } catch (_) {} },
     status() { return { thread_id: threadId }; },
   };
 }
 
-const backend = BACKEND === "codex" ? makeCodexBackend() : makeClaudeBackend();
+const backend = makeCodexBackend();
 backend.init();
 
 // ---- socket ops -------------------------------------------------------------
@@ -575,7 +435,7 @@ async function opRecv({ timeout_ms }) {
 
   while (Date.now() - start < timeout) {
     const hasNew = events.length > consumed;
-    if (findTerminator() !== -1 || backend.isFatallyExited()) break;
+    if (findTerminator() !== -1) break;
     if (hasNew && Date.now() - start > 500) break;
     await sleep(100);
   }
@@ -592,21 +452,17 @@ async function opRecv({ timeout_ms }) {
     if (c.kind === "rate_limited") return { ok: true, outcome: "rate_limited", rate_limit: c.rate_limit, raw };
     if (c.kind === "malformed") return { ok: true, outcome: "malformed", error: c.error, raw };
     if (c.kind === "error") return { ok: true, outcome: "error", error: c.error, raw };
-    const narration = backend.narrate ? backend.narrate(turnSlice, c.reply) : "";
+    const narration = backend.narrate(turnSlice, c.reply);
     return { ok: true, outcome: "reply", reply: c.reply, narration, raw };
   }
 
-  if (backend.isFatallyExited()) {
-    const detail = backend.exitInfo() ? JSON.stringify(backend.exitInfo()) : "unknown";
-    return { ok: true, outcome: "exited", error: `agent process exited mid-turn: ${detail}`, raw };
-  }
   return { ok: true, outcome: "working", raw };
 }
 
 function opStatus() {
   return {
     ok: true,
-    backend: BACKEND,
+    backend: "codex",
     model: MODEL || null,
     events_total: events.length,
     consumed,
@@ -657,7 +513,7 @@ try { fs.unlinkSync(SOCKET_PATH); } catch (_) {}
 
 server.listen(SOCKET_PATH, () => {
   try { fs.chmodSync(SOCKET_PATH, 0o600); } catch (_) {}
-  console.error(`[server] listening on ${SOCKET_PATH} (backend=${BACKEND})`);
+  console.error(`[server] listening on ${SOCKET_PATH} (backend=codex)`);
 });
 
 // unref so the watchdog itself never keeps the process alive.
