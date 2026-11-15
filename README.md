@@ -1,7 +1,7 @@
 # agent-backed-llm-server
 
-> [!WARNING]
-> **Vibe coded**: This codebase was generated using an agent, testing the limits of this approach.
+> [!NOTE]
+> **Preview only.** APIs and design are unstable and subject to change.
 
 An OpenAI-compatible **LLM endpoint** backed by the Codex CLI running in
 docker. It lets a subscription (`~/.codex` login, no API key) be
