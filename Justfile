@@ -16,11 +16,6 @@ fix:
 serve:
   bash scripts/serve.sh
 
-refresh-models:
-  #!/usr/bin/env bash
-  set -euo pipefail
-  obelisk execution submit agent-backed-llm:models/workflow.refresh-model-inventory --
-
 # Send one prompt to the running endpoint and print the reply.
 chat prompt model="codex":
   ./scripts/chat.sh "{{prompt}}" "{{model}}"
