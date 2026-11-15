@@ -142,7 +142,7 @@ Or use the helper, which takes a prompt and an optional model (default `codex`):
 
 ```sh
 just chat "Say hi in one word."
-just chat "Say hi in one word." codex/gpt-5.5
+just chat "Say hi in one word." "codex/<model-from-v1/models>"
 # equivalently: ./scripts/chat.sh "<prompt>" [model]
 ```
 
@@ -157,13 +157,13 @@ OpenAI client) at
 ### Selecting the model per request
 
 `model` selects a concrete CLI model as `codex/<model>`. Everything after the
-first `/` is passed to `codex -m`. Without a `/`, the deploy-time default
-applies (`AGENT_CODEX_MODEL`, default `gpt-5.5`).
+first `/` is passed to `codex -m`. Without a `/`, `AGENT_CODEX_MODEL` applies if
+set; otherwise Codex chooses its own default model using the mounted configuration.
 Use `AGENT_CODEX_EXTRA_ARGS` for additional CLI arguments.
 
 ```sh
-just chat "hi" codex/gpt-5.5     # model "gpt-5.5"
-just chat "hi" codex             # deploy-time default model
+just chat "hi" "codex/<model-from-v1/models>"  # explicit discovered model
+just chat "hi" codex                          # configured or CLI default model
 ```
 
 The model is fixed when the session starts (turn 0). A warm session keeps its
