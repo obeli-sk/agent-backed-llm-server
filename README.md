@@ -62,7 +62,7 @@ codex login  # authenticate once -> ~/.codex
              # AGENT_HOST_CODEX_DIR selects what gets mounted
 
 # The webhooks call this server's API with its startup token (an internal
-# secret in app.toml). `just serve` and `just refresh-models` still present
+# secret in app.toml). `just serve` still presents
 # OBELISK_API_TOKEN, which the server also accepts. `direnv` users get one from
 # .envrc-example; otherwise export it before `just serve`:
 export OBELISK_API_TOKEN=$(obelisk generate token)
@@ -82,7 +82,7 @@ drop the old digest and copy the new one into the `server.toml` exec gate.
 
 `just serve` runs `scripts/serve.sh`, which submits
 `agent-backed-llm:models/workflow.refresh-model-inventory` after the authenticated
-API is ready. Each refresh probes Codex in a short-lived
+API is ready. Startup discovery probes Codex in a short-lived
 container using the same image, auth mounts, default model, and extra arguments
 as real sessions. Codex app-server's
 `model/list` supplies the catalog; no inference prompt is sent.
@@ -91,13 +91,13 @@ The launch script calls `OBELISK_API_URL` with
 `OBELISK_API_TOKEN` (default the repository folder name). It forwards termination
 to Obelisk and waits up to `MODEL_DISCOVERY_STARTUP_TIMEOUT_SECONDS` (default 90)
 for API readiness. Starting `obelisk server run` directly bypasses the startup
-refresh. An hourly cron refresh runs independently and survives restarts.
+discovery. Discovery runs once per `just serve` invocation, with no periodic refresh.
+Restart with `just serve` after rebuilding or changing the image to discover its catalog.
 Set `OBELISK_API_URL` and `INTERNAL_BASE_URL` to the configured listener URLs.
 The external launch/chat helpers require these shell variables; app components
 receive their own API URL from the internal `api-url` source.
 
 ```sh
-just refresh-models                        # submit a refresh manually
 curl -fsS "$INTERNAL_BASE_URL/v1/models"    # read the persisted inventory
 ```
 
