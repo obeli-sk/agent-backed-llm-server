@@ -22,7 +22,8 @@ function request(socketPath, command) {
   });
 }
 
-test("Codex resume preserves the configured model over the CLI default", { timeout: 15000 }, async () => {
+for (const configuredModel of ["", "configured-model"]) {
+test(`Codex first turn and resume use the ${configuredModel ? "configured" : "CLI default"} model`, { timeout: 15000 }, async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "codex-resume-model-"));
   const socketPath = path.join(directory, "agent.sock");
   const promptPath = path.join(directory, "prompt.txt");
@@ -36,8 +37,8 @@ process.stdin.resume();
 process.stdin.on("end", () => {
   console.log(JSON.stringify({ type: "thread.started", thread_id: "test-thread" }));
   const modelIndex = args.indexOf("-m");
-  const model = modelIndex < 0 ? "unsupported-default" : args[modelIndex + 1];
-  if (model !== "gpt-5.5") {
+  const model = modelIndex < 0 ? "" : args[modelIndex + 1];
+  if (model !== process.env.TEST_EXPECTED_MODEL) {
     console.log(JSON.stringify({ type: "turn.failed", error: { message: "unsupported model" } }));
   } else {
     console.log(JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: '{"final":"ok"}' } }));
@@ -49,10 +50,11 @@ process.stdin.on("end", () => {
     env: {
       ...process.env,
       PATH: `${directory}${path.delimiter}${process.env.PATH}`,
-      AGENT_MODEL: "gpt-5.5",
+      AGENT_MODEL: configuredModel,
       AGENT_EXTRA_ARGS: "",
       AGENT_SYSTEM_PROMPT_PATH: promptPath,
       TEST_ARGUMENTS_PATH: argumentsPath,
+      TEST_EXPECTED_MODEL: configuredModel,
     },
     stdio: ["ignore", "ignore", "pipe"],
   });
@@ -73,6 +75,10 @@ process.stdin.on("end", () => {
     }
     const calls = (await fs.readFile(argumentsPath, "utf8")).trim().split("\n").map(JSON.parse);
     assert.equal(calls.length, 2);
+    for (const args of calls) {
+      assert.equal(args.includes("-m"), configuredModel !== "");
+      if (configuredModel) assert.equal(args[args.indexOf("-m") + 1], configuredModel);
+    }
     assert.deepEqual(calls[1].slice(0, 3), ["exec", "resume", "test-thread"]);
   } finally {
     server.kill("SIGTERM");
@@ -80,3 +86,4 @@ process.stdin.on("end", () => {
     await fs.rm(directory, { recursive: true, force: true });
   }
 });
+}

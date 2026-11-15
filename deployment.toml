@@ -19,7 +19,7 @@ env_vars = [
   "PATH",
   "HOME",
   { key = "AGENT_IMAGE",          value = "${AGENT_IMAGE:-docker.io/getobelisk/agent-backed-llm-server:latest}" },
-  { key = "AGENT_MODEL",          value = "${AGENT_CODEX_MODEL:-gpt-5.5}" },
+  { key = "AGENT_MODEL",          value = "${AGENT_CODEX_MODEL:-}" },
   { key = "AGENT_EXTRA_ARGS",     value = "${AGENT_CODEX_EXTRA_ARGS:-}" },
   { key = "AGENT_HOST_CODEX_DIR", value = "${AGENT_HOST_CODEX_DIR:-${HOME}/.codex}" },
 ]
@@ -133,7 +133,7 @@ max_output_bytes = 1048576
 env_vars = [
   "PATH", "HOME",
   { key = "AGENT_IMAGE", value = "${AGENT_IMAGE:-docker.io/getobelisk/agent-backed-llm-server:latest}" },
-  { key = "AGENT_MODEL", value = "${AGENT_CODEX_MODEL:-gpt-5.5}" },
+  { key = "AGENT_MODEL", value = "${AGENT_CODEX_MODEL:-}" },
   { key = "AGENT_EXTRA_ARGS", value = "${AGENT_CODEX_EXTRA_ARGS:-}" },
   { key = "AGENT_HOST_CODEX_DIR", value = "${AGENT_HOST_CODEX_DIR:-${HOME}/.codex}" },
 ]
