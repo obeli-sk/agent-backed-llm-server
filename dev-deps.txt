@@ -1,2 +1,2 @@
-obelisk 0.43.0-rc.17 (1de161e)
+obelisk 0.43.0-rc.18 (654b621)
 node.js v22.23.4
