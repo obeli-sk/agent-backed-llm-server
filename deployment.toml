@@ -49,7 +49,7 @@ params = [
 return_type = "result<variant { working, reply(record { reply: variant { final(string), error(string), tool-calls(list<record { name: string, arguments-json: string }>) }, presentation: string, narration: string }) }, variant { permanent-rate-limited(record { retry-after-seconds: u32, message: string }), permanent-malformed-reply(string), permanent-agent-exited(string), permanent-error(string), transient-error(string), execution-failed }>"
 location = "activity/agent-recv.js"
 exec.lock_expiry.minutes = 10
-max_output_bytes = 1048576
+max_output_size.mib = 1
 max_retries = 3
 env_vars = ["PATH"]
 
@@ -129,7 +129,7 @@ return_type = "result<string, string>"
 location = "activity/discover-models.js"
 exec.lock_expiry.seconds = 90
 max_retries = 0
-max_output_bytes = 1048576
+max_output_size.mib = 1
 env_vars = [
   "PATH", "HOME",
   { key = "AGENT_IMAGE", value = "${AGENT_IMAGE:-docker.io/getobelisk/agent-backed-llm-server:latest}" },
